@@ -53,6 +53,7 @@ class UphealApi {
   Future<Map<String, dynamic>> assess({
     required Map<String, int> answers,
     required String userId,
+    String? authToken,
     String? sessionId,
   }) async {
     final uri = _uri('/api/assess');
@@ -72,8 +73,10 @@ class UphealApi {
     try {
       final response = await http.post(
         uri,
-        headers: const {
+        headers: {
           'Content-Type': 'application/json',
+          if (authToken != null && authToken.isNotEmpty)
+            'Authorization': 'Bearer $authToken',
         },
         body: jsonEncode(payload),
       ).timeout(

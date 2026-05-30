@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/streak_model.dart';
 import 'notification_service.dart';
 
@@ -24,15 +22,14 @@ class StreakService {
     await _scheduleStreakNotifications();
   }
   
-  /// Load streak data from local storage and/or Firebase
+  /// Load streak data from local storage.
   static Future<void> _loadStreakData() async {
     if (_state == null) return;
     
     _state!.setLoading(true);
     
     try {
-      Map<String, dynamic>? data = await _loadRemoteData();
-      data ??= await _loadLocalData();
+      final data = await _loadLocalData();
       
       if (data != null) {
         _parseAndInitializeState(data);
@@ -98,28 +95,9 @@ class StreakService {
     }
   }
 
-  /// Load streak data from Firestore if a user is logged in.
+  /// Remote streak sync is handled by the backend when an endpoint is available.
   static Future<Map<String, dynamic>?> _loadRemoteData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return null;
-
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('streak')
-          .doc('current')
-          .get();
-
-      if (!doc.exists) return null;
-      final data = doc.data();
-      if (data == null) return null;
-      debugPrint('Loaded streak data from Firebase');
-      return data;
-    } catch (e) {
-      debugPrint('Error loading streak from Firebase: $e');
-      return null;
-    }
+    return null;
   }
   
   /// Parse data and initialize state
@@ -275,21 +253,7 @@ class StreakService {
   }
 
   static Future<void> _saveRemoteData(Map<String, dynamic> data) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('streak')
-          .doc('current')
-          .set(data, SetOptions(merge: true));
-
-      debugPrint('Streak data saved to Firebase');
-    } catch (e) {
-      debugPrint('Error saving streak to Firebase: $e');
-    }
+    return;
   }
   
   /// Record an activity and update streak
@@ -467,34 +431,9 @@ class StreakService {
     };
   }
   
-  /// Sync streak data with Firebase
+  /// Sync streak data through the backend once a streak endpoint exists.
   static Future<void> syncWithCloud() async {
     if (_state == null) return;
-    
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    
-    try {
-      final cloudData = await _loadRemoteData();
-      if (cloudData == null) {
-        // No cloud data, upload local snapshot
-        await saveStreakData();
-        return;
-      }
-      final cloudStreak = cloudData['currentStreak'] as int? ?? 0;
-      final cloudLongest = cloudData['longestStreak'] as int? ?? 0;
-      
-      // Use the higher values (merge strategy)
-      if (cloudStreak > _state!.currentStreak || cloudLongest > _state!.longestStreak) {
-        _parseAndInitializeState(cloudData);
-      }
-      
-      // Always save to ensure both are in sync
-      await saveStreakData();
-      
-      debugPrint('Streak synced with cloud');
-    } catch (e) {
-      debugPrint('Error syncing streak with cloud: $e');
-    }
+    await saveStreakData();
   }
 }

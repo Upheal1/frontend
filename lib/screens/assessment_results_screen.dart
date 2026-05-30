@@ -6,9 +6,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../main.dart';
+import '../models/auth_model.dart';
 import '../models/navigation_model.dart';
 
 /// Enhanced screen to display clinical assessment results and RAG recommendations
@@ -71,9 +71,9 @@ class _AssessmentResultsScreenState extends State<AssessmentResultsScreen>
   Future<void> _markAssessmentCompleted() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await prefs.setBool('has_completed_assessment_${user.uid}', true);
+      final userId = context.read<AuthModel>().userId;
+      if (userId != null) {
+        await prefs.setBool('has_completed_assessment_$userId', true);
       }
     } catch (e) {
       debugPrint('Error marking assessment completed: $e');

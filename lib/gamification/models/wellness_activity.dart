@@ -86,9 +86,9 @@ extension WellnessActivityTypeExtension on WellnessActivityType {
 /// Represents a completed wellness activity for gamification processing.
 ///
 /// This is intentionally lightweight and serializable so it can be stored
-/// locally (Hive/SharedPreferences) or in Firestore.
+/// locally (Hive/SharedPreferences) or through backend APIs.
 class WellnessActivity {
-  /// Identifier for this activity event (e.g. Firestore document id or UUID).
+  /// Identifier for this activity event.
   final String? id;
 
   final WellnessActivityType type;

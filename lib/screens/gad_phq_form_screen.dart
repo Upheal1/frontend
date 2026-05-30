@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../clinical_forms.dart';
+import '../models/auth_model.dart';
+import '../services/supabase_auth_service.dart';
 import '../services/upheal_api.dart';
 import 'assessment_results_screen.dart';
 
@@ -729,13 +730,9 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
 
       await _saveAssessmentLocally(answers: answers);
       
-      try {
-        await _saveAssessmentToFirestore(context, answers: answers);
-      } catch (e) {
-        debugPrint('Firestore save failed (offline?): $e');
-      }
-
-      final userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+      final authModel = Provider.of<AuthModel>(context, listen: false);
+      final userId = authModel.userId ?? 'anonymous';
+      final authToken = authModel.accessToken;
 
       Map<String, dynamic>? results;
       try {
@@ -743,6 +740,7 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
         results = await api.assess(
           answers: answers,
           userId: userId,
+          authToken: authToken,
         );
         debugPrint('RAG API response received: $results');
       } catch (e) {
@@ -831,9 +829,9 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
   Future<void> _saveAssessmentResults(Map<String, dynamic> results) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final user = FirebaseAuth.instance.currentUser;
-      final key = user != null 
-          ? 'assessment_results_${user.uid}' 
+      final userId = SupabaseAuthService().currentUserId;
+      final key = userId != null 
+          ? 'assessment_results_$userId' 
           : 'assessment_results_anonymous';
       
       // Add timestamp to results
@@ -849,33 +847,6 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
     }
   }
 
-  Future<void> _saveAssessmentToFirestore(
-    BuildContext context, {
-    required Map<String, int> answers,
-  }) async {
-    try {
-      String? userId;
-      try {
-        userId = FirebaseFirestore.instance.app.options.projectId;
-      } catch (_) {
-        userId = null;
-      }
-
-      final now = DateTime.now().toUtc();
-
-      await FirebaseFirestore.instance
-          .collection('clinical_assessments')
-          .add({
-        'answers': answers,
-        'created_at': now.toIso8601String(),
-        'user_id': userId,
-      });
-
-      debugPrint('Clinical assessment saved to Firestore.');
-    } catch (e, st) {
-      debugPrint('Failed to save assessment to Firestore: $e\n$st');
-    }
-  }
 }
 
 /// Helper class to hold question with section metadata

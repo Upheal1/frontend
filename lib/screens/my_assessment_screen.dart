@@ -5,8 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import '../services/supabase_auth_service.dart';
 import 'gad_phq_form_screen.dart';
 import 'assessment_results_screen.dart';
 import '../widgets/drawer_menu_button.dart';
@@ -61,9 +61,9 @@ class _MyAssessmentScreenState extends State<MyAssessmentScreen>
   Future<void> _loadSavedResults() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final user = FirebaseAuth.instance.currentUser;
-      final key = user != null
-          ? 'assessment_results_${user.uid}'
+      final userId = SupabaseAuthService().currentUserId;
+      final key = userId != null
+          ? 'assessment_results_$userId'
           : 'assessment_results_anonymous';
 
       final savedJson = prefs.getString(key);

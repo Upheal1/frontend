@@ -5,11 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'firebase_options.dart';
 import 'constants/app_colors.dart';
 import 'models/mission_model.dart';
 import 'models/user_model.dart';
@@ -52,6 +48,7 @@ import 'screens/mood_tracker_screen.dart';
 import 'services/screen_time_service.dart';
 import 'services/screen_time_notification_service.dart';
 import 'services/notification_service.dart';
+import 'services/supabase_auth_service.dart';
 import 'services/usage_cache_service.dart';
 import 'models/hive/app_usage_cache.dart';
 import 'models/hive/focus_session_history.dart';
@@ -144,31 +141,27 @@ Future<void> main() async {
   }
 
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    debugPrint('Firebase initialized successfully');
-
-    // Initialize screen time notifications
-    try {
-      await ScreenTimeNotificationService.initialize();
-      debugPrint('Screen time notifications initialized successfully');
-    } catch (e) {
-      debugPrint('Screen time notifications initialization error: $e');
-    }
-
-    // Initialize notification service for app usage limits
-    try {
-      await NotificationService.initialize();
-      // Set up notification tap handler
-      NotificationService.onNotificationTap = _handleNotificationTap;
-      debugPrint('NotificationService initialized successfully');
-    } catch (e) {
-      debugPrint('NotificationService initialization error: $e');
+    await SupabaseAuthService.initialize();
+    if (SupabaseAuthService.isInitialized) {
+      debugPrint('Supabase auth initialized successfully');
     }
   } catch (e) {
-    debugPrint('Firebase initialization error: $e');
-    // Continue even if Firebase fails to initialize
+    debugPrint('Supabase auth initialization error: $e');
+  }
+
+  try {
+    await ScreenTimeNotificationService.initialize();
+    debugPrint('Screen time notifications initialized successfully');
+  } catch (e) {
+    debugPrint('Screen time notifications initialization error: $e');
+  }
+
+  try {
+    await NotificationService.initialize();
+    NotificationService.onNotificationTap = _handleNotificationTap;
+    debugPrint('NotificationService initialized successfully');
+  } catch (e) {
+    debugPrint('NotificationService initialization error: $e');
   }
 
   try {
@@ -294,9 +287,8 @@ class UpHealApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) {
-            // Try to get username from Firebase Auth if user is already logged in
-            final firebaseUser = FirebaseAuth.instance.currentUser;
-            final initialUsername = firebaseUser?.displayName ?? 'UpHeal User';
+            final auth = context.read<AuthModel>();
+            final initialUsername = auth.userName ?? 'UpHeal User';
 
             return UserModel(
               username: initialUsername,
@@ -518,34 +510,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
       final authModel = Provider.of<AuthModel>(context, listen: false);
       if (!authModel.isAuthenticated) return;
 
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      final userId = authModel.userId;
+      if (userId == null) return;
 
       // Check per-user completion status in SharedPreferences
       final prefs = await SharedPreferences.getInstance();
-      final userKey = 'has_completed_assessment_${user.uid}';
+      final userKey = 'has_completed_assessment_$userId';
       bool hasCompleted = prefs.getBool(userKey) ?? false;
-
-      // Also check Firestore as fallback (in case SharedPreferences was cleared)
-      if (!hasCompleted) {
-        try {
-          final doc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-          if (doc.exists && doc.data()?['has_completed_assessment'] == true) {
-            hasCompleted = true;
-            // Sync to SharedPreferences for faster future checks
-            await prefs.setBool(userKey, true);
-            debugPrint(
-              'Synced completion status from Firestore to SharedPreferences',
-            );
-          }
-        } catch (e) {
-          debugPrint('Error checking Firestore completion status: $e');
-          // Continue with SharedPreferences value
-        }
-      }
 
       // Show assessment screen if user hasn't completed it
       if (!hasCompleted && mounted) {
@@ -572,9 +543,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             try {
               final userModel = Provider.of<UserModel>(context, listen: false);
-              final firebaseUser = FirebaseAuth.instance.currentUser;
-              final usernameToUse =
-                  authModel.userName ?? firebaseUser?.displayName;
+              final usernameToUse = authModel.userName;
 
               if (usernameToUse != null &&
                   usernameToUse.isNotEmpty &&

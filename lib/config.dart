@@ -12,6 +12,14 @@ const String PASSWORD_PEPPER = 'D9f#7kLp2@wVx8qZrT1mY!uB4sE0jHcN';
 // 🔗 API base URL (placeholder - replace when backend is ready)
 const String API_BASE_URL = 'https://api.example.com';
 
+const String SUPABASE_URL = String.fromEnvironment(
+  'SUPABASE_URL',
+  defaultValue: 'https://gcxxmjptbyvlabqzcprv.supabase.co',
+);
 
+const String SUPABASE_ANON_KEY = String.fromEnvironment(
+  'SUPABASE_ANON_KEY',
+  defaultValue: '',
+);
 
 
