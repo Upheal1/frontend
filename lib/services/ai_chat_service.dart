@@ -1,102 +1,66 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:async';
+
+import '../models/chat_model.dart';
+import 'upheal_api.dart';
 
 class AiChatService {
-  static const String _apiKey = String.fromEnvironment(
-    'GROQ_API_KEY',
-    defaultValue: '',
-  );
-  static const String _endpoint =
-      "https://api.groq.com/openai/v1/chat/completions";
+  static const Duration timeout = Duration(seconds: 30);
 
-  static const String systemPrompt = """You are an AI mental health support assistant acting as a warm, empathetic therapist and life coach.
-
-Core behavior:
-- Use Cognitive Behavioral Therapy (CBT) techniques
-- Validate emotions before giving guidance
-- Keep responses short to medium (3–7 sentences)
-- Be calm, friendly, non-judgmental, and supportive
-- Ask gentle follow-up questions to continue the conversation
-- Speak in a natural, human tone suitable for Gen-Z and Gen-Alpha
-
-CBT techniques to apply:
-- Cognitive reframing
-- Thought awareness
-- Grounding exercises
-- Behavioral activation
-- Stress and anxiety coping strategies
-
-Memory:
-- Remember important details shared by the user during this conversation
-- Refer back to them naturally when helpful
-
-Safety rules (VERY IMPORTANT):
-- Do NOT diagnose
-- Do NOT give medical or clinical advice
-- If the user expresses suicidal thoughts, self-harm, or crisis:
-  - Respond with empathy
-  - Encourage contacting local emergency services or a trusted person
-  - Suggest reaching out to a mental health professional
-  - Never act as a replacement for professional care
-
-Your goal:
-Help the user feel heard, supported, and gently guided — like a trusted therapist and friend.
-""";
-
-  static Future<String> sendMessage(
-      String userMessage,
-      List<Map<String, String>> history,
-      ) async {
-    if (_apiKey.isEmpty) {
-      throw Exception(
-        'GROQ_API_KEY is not set. '
-            'Build with: flutter run --dart-define=GROQ_API_KEY=<your_key>',
-      );
-    }
-
+  static Future<ChatResponse> sendMessage({
+    required String message,
+    String? sessionId,
+    String? roadmapId,
+  }) async {
     try {
-      final response = await http.post(
-        Uri.parse(_endpoint),
-        headers: {
-          "Authorization": "Bearer $_apiKey",
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({
-          "model": "llama-3.1-8b-instant",
-          "messages": [
-            {"role": "system", "content": systemPrompt},
-            ...history,
-            {"role": "user", "content": userMessage}
-          ],
-          "temperature": 0.7,
-          "max_tokens": 300
-        }),
+      final result = await UphealApi().sendChatMessage(
+        message: message,
+        sessionId: sessionId,
+        roadmapId: roadmapId,
       );
 
-      if (response.statusCode != 200) {
-        throw Exception(
-          'AI service error (${response.statusCode}). Please try again.',
-        );
+      final response = ChatResponse.fromJson(result);
+      return response;
+    } on TimeoutException {
+      throw Exception('Chat request timed out. Please try again.');
+    } catch (e) {
+      if (e.toString().contains('401')) {
+        throw Exception('Session expired. Please sign in again.');
       }
+      rethrow;
+    }
+  }
 
-      final data = jsonDecode(response.body);
-      if (data is! Map<String, dynamic>) {
-        throw Exception('Unexpected response format from AI service.');
+  static Future<ChatHistoryResponse> getHistory(String sessionId) async {
+    try {
+      final result = await UphealApi().getChatHistory(sessionId);
+      final response = ChatHistoryResponse.fromJson(result);
+      return response;
+    } on TimeoutException {
+      throw Exception('Chat history request timed out.');
+    } catch (e) {
+      if (e.toString().contains('404')) {
+        throw Exception('Chat session not found.');
       }
+      rethrow;
+    }
+  }
 
-      final choices = data['choices'];
-      if (choices == null || choices is! List || choices.isEmpty) {
-        throw Exception('No response received from AI service.');
-      }
-
-      final content = choices[0]?['message']?['content'];
-      if (content == null || content is! String) {
-        throw Exception('Invalid response structure from AI service.');
-      }
-
-      return content;
-    } on FormatException {
-      throw Exception('Failed to parse AI service response.');
+  static Future<void> sendMessageWithLocalFallback({
+    required String message,
+    String? sessionId,
+    String? roadmapId,
+    required void Function(String) onResponse,
+    required void Function(String) onError,
+  }) async {
+    try {
+      final response = await sendMessage(
+        message: message,
+        sessionId: sessionId,
+        roadmapId: roadmapId,
+      );
+      onResponse(response.assistantMessage.content);
+    } catch (e) {
+      onError(e.toString());
     }
   }
 }

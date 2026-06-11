@@ -39,6 +39,16 @@ class AppDrawerDestination {
   final AppRouteData route;
 }
 
+class AppDrawerSection {
+  const AppDrawerSection({
+    required this.title,
+    required this.items,
+  });
+
+  final String title;
+  final List<AppDrawerDestination> items;
+}
+
 class WelcomeRoute extends AppRouteData {
   const WelcomeRoute();
 
@@ -310,6 +320,66 @@ class SettingsRoute extends AppRouteData {
   String get location => path;
 }
 
+class MoodTrackingRoute extends AppRouteData {
+  const MoodTrackingRoute();
+
+  static const String name = 'moodTracking';
+  static const String path = '/app/mood-tracking';
+
+  @override
+  String get location => path;
+}
+
+class InsightsRoute extends AppRouteData {
+  const InsightsRoute();
+
+  static const String name = 'insights';
+  static const String path = '/app/insights';
+
+  @override
+  String get location => path;
+}
+
+class CoursesRoute extends AppRouteData {
+  const CoursesRoute();
+
+  static const String name = 'courses';
+  static const String path = '/app/courses';
+
+  @override
+  String get location => path;
+}
+
+class SubscriptionRoute extends AppRouteData {
+  const SubscriptionRoute();
+
+  static const String name = 'subscription';
+  static const String path = '/app/subscription';
+
+  @override
+  String get location => path;
+}
+
+class HelpSupportRoute extends AppRouteData {
+  const HelpSupportRoute();
+
+  static const String name = 'helpSupport';
+  static const String path = '/app/help-support';
+
+  @override
+  String get location => path;
+}
+
+class AboutRoute extends AppRouteData {
+  const AboutRoute();
+
+  static const String name = 'about';
+  static const String path = '/app/about';
+
+  @override
+  String get location => path;
+}
+
 class FocusSessionRoute extends AppRouteData {
   const FocusSessionRoute();
 
@@ -330,6 +400,16 @@ class AiChatRoute extends AppRouteData {
   String get location => path;
 }
 
+class AvatarTestRoute extends AppRouteData {
+  const AvatarTestRoute();
+
+  static const String name = 'avatarTest';
+  static const String path = '/test/avatars';
+
+  @override
+  String get location => path;
+}
+
 const List<AppBranchDestination> appBottomNavDestinations = <AppBranchDestination>[
   AppBranchDestination(
     icon: LucideIcons.home,
@@ -337,14 +417,19 @@ const List<AppBranchDestination> appBottomNavDestinations = <AppBranchDestinatio
     route: HomeRoute(),
   ),
   AppBranchDestination(
-    icon: LucideIcons.target,
-    label: 'Challenges',
-    route: ChallengesRoute(),
-  ),
-  AppBranchDestination(
     icon: LucideIcons.users,
     label: 'Community',
     route: CommunityRoute(),
+  ),
+  AppBranchDestination(
+    icon: LucideIcons.sparkles,
+    label: 'Chatbot',
+    route: AiChatRoute(),
+  ),
+  AppBranchDestination(
+    icon: LucideIcons.map,
+    label: 'Roadmap',
+    route: RoadmapRoute(),
   ),
   AppBranchDestination(
     icon: LucideIcons.user,
@@ -367,6 +452,48 @@ const List<AppDrawerDestination> appDrawerDestinations = <AppDrawerDestination>[
   AppDrawerDestination(icon: LucideIcons.ban, label: 'Block Apps', route: BlockAppsRoute()),
   AppDrawerDestination(icon: LucideIcons.settings, label: 'Settings', route: SettingsRoute()),
   AppDrawerDestination(icon: LucideIcons.user, label: 'Profile', route: ProfileRoute()),
+];
+
+const List<AppDrawerSection> appDrawerSections = <AppDrawerSection>[
+  AppDrawerSection(
+    title: 'Main Features',
+    items: <AppDrawerDestination>[
+      AppDrawerDestination(icon: LucideIcons.layoutDashboard, label: 'Dashboard', route: HomeRoute()),
+      AppDrawerDestination(icon: LucideIcons.checkSquare, label: 'Daily Tasks', route: HomeRoute()),
+      AppDrawerDestination(icon: LucideIcons.target, label: 'Challenges', route: ChallengesRoute()),
+      AppDrawerDestination(icon: LucideIcons.timer, label: 'Focus Mode', route: FocusSessionRoute()),
+      AppDrawerDestination(icon: LucideIcons.bookOpen, label: 'Journaling', route: JournalRoute()),
+      AppDrawerDestination(icon: LucideIcons.footprints, label: 'Habit Tracker', route: StepTrackerRoute()),
+    ],
+  ),
+  AppDrawerSection(
+    title: 'Mental Health',
+    items: <AppDrawerDestination>[
+      AppDrawerDestination(icon: LucideIcons.brain, label: 'Assessment', route: MyAssessmentRoute()),
+      AppDrawerDestination(icon: LucideIcons.heartPulse, label: 'Mood Tracking', route: MoodTrackingRoute()),
+      AppDrawerDestination(icon: LucideIcons.barChart3, label: 'Progress Reports', route: AnalyticsRoute()),
+      AppDrawerDestination(icon: LucideIcons.barChart3, label: 'Insights', route: InsightsRoute()),
+    ],
+  ),
+  AppDrawerSection(
+    title: 'Learning & Growth',
+    items: <AppDrawerDestination>[
+      AppDrawerDestination(icon: LucideIcons.map, label: 'Roadmaps', route: RoadmapRoute()),
+      AppDrawerDestination(icon: LucideIcons.graduationCap, label: 'Courses', route: CoursesRoute()),
+      AppDrawerDestination(icon: LucideIcons.users, label: 'Community', route: CommunityRoute()),
+      AppDrawerDestination(icon: LucideIcons.sparkles, label: 'AI Coach', route: AiChatRoute()),
+    ],
+  ),
+  AppDrawerSection(
+    title: 'Account',
+    items: <AppDrawerDestination>[
+      AppDrawerDestination(icon: LucideIcons.settings, label: 'Settings', route: SettingsRoute()),
+      AppDrawerDestination(icon: LucideIcons.bell, label: 'Notifications', route: NotificationSettingsRoute()),
+      AppDrawerDestination(icon: LucideIcons.creditCard, label: 'Subscription', route: SubscriptionRoute()),
+      AppDrawerDestination(icon: LucideIcons.lifeBuoy, label: 'Help & Support', route: HelpSupportRoute()),
+      AppDrawerDestination(icon: LucideIcons.info, label: 'About', route: AboutRoute()),
+    ],
+  ),
 ];
 
 AppRouteData routeForLegacyIndex(int index) {
@@ -411,4 +538,5 @@ const Set<String> publicRoutePrefixes = <String>{
   SignUpRoute.path,
   '/onboarding',
   '/onboarding-flow',
+  AvatarTestRoute.path,
 };

@@ -33,6 +33,8 @@ import '../screens/profile_screen.dart';
 import '../screens/roadmap_screen.dart';
 import '../screens/sleep_tracker_screen.dart';
 import '../screens/streak_screen.dart';
+import '../screens/insights_screen.dart';
+import '../screens/mood_tracker_screen.dart';
 import '../features/steps/ui/screens/step_tracker_screen.dart';
 import '../screens/welcome_screen.dart';
 import '../services/challenge_service.dart';
@@ -41,6 +43,8 @@ import 'app_route_placeholder_screen.dart';
 import 'app_route_transitions.dart';
 import 'app_routes.dart';
 import 'app_shell_scaffold.dart';
+import '../shared/navigation/placeholder_detail_screen.dart';
+import '../screens/avatar_test_screen.dart';
 import '../screens/login_screen.dart';
 
 class AppRouter {
@@ -99,6 +103,15 @@ class AppRouter {
         ),
       ),
       GoRoute(
+        path: AvatarTestRoute.path,
+        name: AvatarTestRoute.name,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            AppRouteTransitions.buildPage<void>(
+          state: state,
+          child: const AvatarTestScreen(),
+        ),
+      ),
+      GoRoute(
         path: '/onboarding/:step',
         name: OnboardingStepRoute.name,
         pageBuilder: (BuildContext context, GoRouterState state) =>
@@ -120,6 +133,7 @@ class AppRouter {
           return AppShellScaffold(navigationShell: navigationShell);
         },
         branches: <StatefulShellBranch>[
+          // Branch 0: Home
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
@@ -186,28 +200,6 @@ class AppRouter {
                 ),
               ),
               GoRoute(
-                path: RoadmapRoute.path,
-                name: RoadmapRoute.name,
-                pageBuilder: (BuildContext context, GoRouterState state) =>
-                    AppRouteTransitions.buildPage<void>(
-                  state: state,
-                  child: const RoadmapScreen(),
-                ),
-              ),
-              GoRoute(
-                path: '/app/roadmap/world/:worldId',
-                name: RoadmapWorldRoute.name,
-                pageBuilder: (BuildContext context, GoRouterState state) =>
-                    AppRouteTransitions.buildPage<void>(
-                  state: state,
-                  child: AppRoutePlaceholderScreen(
-                    title: 'Roadmap World',
-                    message:
-                        'World ${state.pathParameters['worldId']} is reserved for future roadmap deep links.',
-                  ),
-                ),
-              ),
-              GoRoute(
                 path: JournalRoute.path,
                 name: JournalRoute.name,
                 pageBuilder: (BuildContext context, GoRouterState state) =>
@@ -244,6 +236,76 @@ class AppRouter {
                 ),
               ),
               GoRoute(
+                path: MoodTrackingRoute.path,
+                name: MoodTrackingRoute.name,
+                pageBuilder: (BuildContext context, GoRouterState state) =>
+                    AppRouteTransitions.buildPage<void>(
+                  state: state,
+                  child: const MoodTrackerScreen(),
+                ),
+              ),
+              GoRoute(
+                path: InsightsRoute.path,
+                name: InsightsRoute.name,
+                pageBuilder: (BuildContext context, GoRouterState state) =>
+                    AppRouteTransitions.buildPage<void>(
+                  state: state,
+                  child: const InsightsScreen(),
+                ),
+              ),
+              GoRoute(
+                path: CoursesRoute.path,
+                name: CoursesRoute.name,
+                pageBuilder: (BuildContext context, GoRouterState state) =>
+                    AppRouteTransitions.buildPage<void>(
+                  state: state,
+                  child: const PlaceholderDetailScreen(
+                    title: 'Courses',
+                    description:
+                        'Course learning paths can be connected here without affecting the primary tab shell.',
+                  ),
+                ),
+              ),
+              GoRoute(
+                path: SubscriptionRoute.path,
+                name: SubscriptionRoute.name,
+                pageBuilder: (BuildContext context, GoRouterState state) =>
+                    AppRouteTransitions.buildPage<void>(
+                  state: state,
+                  child: const PlaceholderDetailScreen(
+                    title: 'Subscription',
+                    description:
+                        'Subscription management is ready to be connected to billing and entitlement flows.',
+                  ),
+                ),
+              ),
+              GoRoute(
+                path: HelpSupportRoute.path,
+                name: HelpSupportRoute.name,
+                pageBuilder: (BuildContext context, GoRouterState state) =>
+                    AppRouteTransitions.buildPage<void>(
+                  state: state,
+                  child: const PlaceholderDetailScreen(
+                    title: 'Help & Support',
+                    description:
+                        'Support resources, FAQs, and contact actions can be attached here without changing the shell.',
+                  ),
+                ),
+              ),
+              GoRoute(
+                path: AboutRoute.path,
+                name: AboutRoute.name,
+                pageBuilder: (BuildContext context, GoRouterState state) =>
+                    AppRouteTransitions.buildPage<void>(
+                  state: state,
+                  child: const PlaceholderDetailScreen(
+                    title: 'About',
+                    description:
+                        'App information, versioning, and legal content can be surfaced here.',
+                  ),
+                ),
+              ),
+              GoRoute(
                 path: FocusSessionRoute.path,
                 name: FocusSessionRoute.name,
                 pageBuilder: (BuildContext context, GoRouterState state) =>
@@ -252,19 +314,6 @@ class AppRouter {
                   child: const FocusSessionScreen(),
                 ),
               ),
-              GoRoute(
-                path: AiChatRoute.path,
-                name: AiChatRoute.name,
-                pageBuilder: (BuildContext context, GoRouterState state) =>
-                    AppRouteTransitions.buildPage<void>(
-                  state: state,
-                  child: const AiChatScreen(),
-                ),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: <RouteBase>[
               GoRoute(
                 path: ChallengesRoute.path,
                 name: ChallengesRoute.name,
@@ -276,6 +325,7 @@ class AppRouter {
               ),
             ],
           ),
+          // Branch 1: Community
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
@@ -340,6 +390,48 @@ class AppRouter {
               ),
             ],
           ),
+          // Branch 2: AiChat / Chatbot
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: AiChatRoute.path,
+                name: AiChatRoute.name,
+                pageBuilder: (BuildContext context, GoRouterState state) =>
+                    AppRouteTransitions.buildPage<void>(
+                  state: state,
+                  child: const AiChatScreen(),
+                ),
+              ),
+            ],
+          ),
+          // Branch 3: Roadmap
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: RoadmapRoute.path,
+                name: RoadmapRoute.name,
+                pageBuilder: (BuildContext context, GoRouterState state) =>
+                    AppRouteTransitions.buildPage<void>(
+                  state: state,
+                  child: const RoadmapScreen(),
+                ),
+              ),
+              GoRoute(
+                path: '/app/roadmap/world/:worldId',
+                name: RoadmapWorldRoute.name,
+                pageBuilder: (BuildContext context, GoRouterState state) =>
+                    AppRouteTransitions.buildPage<void>(
+                  state: state,
+                  child: AppRoutePlaceholderScreen(
+                    title: 'Roadmap World',
+                    message:
+                        'World ${state.pathParameters['worldId']} is reserved for future roadmap deep links.',
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Branch 4: Profile
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(

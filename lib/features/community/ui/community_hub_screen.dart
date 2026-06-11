@@ -402,7 +402,7 @@ class _CommunityDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0F0F1A) : Colors.white;
-    final surface = isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF7F8FA);
+    final surface = isDark ? const Color(0xFF1A1A2E) : const Color(0xFFFFFFFF);
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary =
         isDark ? Colors.white60 : const Color(0xFF475569);
@@ -901,7 +901,7 @@ class _DrawerTile extends StatelessWidget {
           color: isDark
               ? Colors.white.withValues(alpha: subtle ? 0.03 : 0.05)
               : (subtle
-                  ? const Color(0xFFF7F8FA)
+                  ? const Color(0xFFFFFFFF)
                   : AppColors.purple.withValues(alpha: 0.04)),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(

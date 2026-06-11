@@ -191,8 +191,8 @@ class _TravelerViewerState extends State<TravelerViewer> {
 
                 interactionPrompt: InteractionPrompt.none,
 
-                // Slightly pulled-back framing so full character stays in view.
-                cameraOrbit: CameraOrbit(0, 75, 3.1),
+                // Framing zoomed out so full character stays in view.
+                cameraOrbit: CameraOrbit(0, 65, 4.0),
 
                 loading: Loading.eager,
                 reveal: Reveal.auto,

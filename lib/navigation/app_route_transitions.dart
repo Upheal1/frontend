@@ -170,7 +170,7 @@ class AppPageWrapper extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: backgroundColor ??
-          (isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF7F8FA)),
+          (isDark ? const Color(0xFF1A1A2E) : const Color(0xFFFFFFFF)),
       appBar: showBackButton && title != null
           ? AppBar(
               backgroundColor: Colors.transparent,

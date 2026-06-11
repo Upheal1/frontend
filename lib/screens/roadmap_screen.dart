@@ -10,8 +10,7 @@ import '../services/supabase_service.dart';
 import '../services/upheal_api.dart';
 import '../widgets/drawer_menu_button.dart';
 
-// DEBUG MODE: Set to true to show mock data for UI testing
-const bool useMockRoadmap = true;
+const bool useMockRoadmap = String.fromEnvironment('USE_MOCK_ROADMAP', defaultValue: 'false') == 'true';
 
 class RoadmapScreen extends StatefulWidget {
   const RoadmapScreen({super.key});
@@ -84,16 +83,7 @@ class _RoadmapScreenState extends State<RoadmapScreen>
       final roadmap = await _repo.getCurrentRoadmap(userId);
       if (mounted) {
         setState(() {
-          _roadmap = RoadmapFullResponse(
-            userId: roadmap.userId,
-            overviewParagraph: roadmap.overviewParagraph,
-            suggestedTasks: roadmap.suggestedTasks,
-            safetyStatus: roadmap.safetyStatus,
-            nextCheckupDays: roadmap.nextCheckupDays,
-            generatedAt: roadmap.generatedAt,
-            sessionId: roadmap.sessionId,
-            version: roadmap.version,
-          );
+          _roadmap = roadmap;
           _loading = false;
           _error = null;
         });
@@ -125,16 +115,7 @@ class _RoadmapScreenState extends State<RoadmapScreen>
       final roadmap = await _repo.generateRoadmap(userId: userId);
       if (mounted) {
         setState(() {
-          _roadmap = RoadmapFullResponse(
-            userId: roadmap.userId,
-            overviewParagraph: roadmap.overviewParagraph,
-            suggestedTasks: roadmap.suggestedTasks,
-            safetyStatus: roadmap.safetyStatus,
-            nextCheckupDays: roadmap.nextCheckupDays,
-            generatedAt: roadmap.generatedAt,
-            sessionId: roadmap.sessionId,
-            version: roadmap.version,
-          );
+          _roadmap = roadmap;
           _generating = false;
         });
       }

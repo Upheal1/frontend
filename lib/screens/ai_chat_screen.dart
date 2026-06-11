@@ -16,10 +16,11 @@ class _AiChatScreenState extends State<AiChatScreen> {
   final List<Map<String, String>> history = [];
   final ScrollController _scrollController = ScrollController();
   bool loading = false;
+  String? _sessionId;
 
   void send() async {
     if (controller.text.isEmpty) return;
-    
+
     final userMessage = controller.text.trim();
     if (userMessage.isEmpty) return;
 
@@ -29,27 +30,29 @@ class _AiChatScreenState extends State<AiChatScreen> {
       controller.clear();
     });
 
-    // Scroll to bottom after adding user message
     _scrollToBottom();
 
     try {
-      final reply = await AiChatService.sendMessage(
-        userMessage,
-        history.where((msg) => msg["role"] != "system").toList(),
+      final response = await AiChatService.sendMessage(
+        message: userMessage,
+        sessionId: _sessionId,
       );
 
       setState(() {
-        history.add({"role": "assistant", "content": reply});
+        _sessionId = response.sessionId;
+        history.add({
+          "role": "assistant",
+          "content": response.assistantMessage.content,
+        });
         loading = false;
       });
 
-      // Scroll to bottom after receiving reply
       _scrollToBottom();
     } catch (e) {
       setState(() {
         loading = false;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

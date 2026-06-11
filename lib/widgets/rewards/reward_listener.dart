@@ -1,10 +1,12 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/streak_model.dart';
 import '../../services/reward_orchestrator.dart' as rewards;
+
+import '../../avatar/services/avatar_progression_provider.dart';
+import 'avatar_unlock_overlay.dart';
 import 'badge_unlock_overlay.dart';
 import 'level_up_overlay.dart';
 import 'streak_milestone_overlay.dart';
@@ -104,6 +106,14 @@ class _RewardListenerState extends State<RewardListener> {
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
         ),
+      );
+    } else if (event is rewards.AvatarUnlocked) {
+      AvatarUnlockOverlay.show(
+        _overlayContext,
+        avatarName: event.avatarName,
+        onEquip: () {
+          context.read<AvatarProgressionProvider>().equip(event.avatarSrc);
+        },
       );
     }
 

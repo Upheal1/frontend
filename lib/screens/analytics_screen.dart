@@ -396,7 +396,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
     final handler = context.watch<ErrorHandlerModel>();
     final isBusy = handler.isLoading || _isLoading;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? const Color(0xFF111318) : const Color(0xFFF7F8FA);
+    final backgroundColor = isDark ? const Color(0xFF111318) : const Color(0xFFFFFFFF);
     final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final cardColor = isDark ? const Color(0xFF1A1F26) : Colors.white;
 
@@ -1427,7 +1427,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
                               radius: 4,
                               color: const Color(0xFF7C3AED),
                               strokeWidth: 2,
-                              strokeColor: isDark ? Colors.white : const Color(0xFFF7F8FA),
+                              strokeColor: isDark ? Colors.white : const Color(0xFFFFFFFF),
                             );
                           },
                         ),

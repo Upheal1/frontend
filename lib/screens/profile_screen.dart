@@ -184,6 +184,14 @@ class ProfileScreen extends StatelessWidget {
                   subtitle: 'AI therapist support is available now',
                   onTap: () => const AiChatRoute().push<void>(context),
                 ),
+                const SizedBox(height: 12),
+                _QuickAccessCard(
+                  icon: LucideIcons.personStanding,
+                  iconTint: const Color(0xFF9B87F5),
+                  title: 'Browse Avatars',
+                  subtitle: 'Explore the 3D avatars available for your profile',
+                  onTap: () => const AvatarTestRoute().push<void>(context),
+                ),
                 const SizedBox(height: 18),
                 _LogoutButton(
                   onLogout: () => _confirmLogout(context, authModel),

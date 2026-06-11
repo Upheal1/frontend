@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flex_color_scheme/flex_color_scheme.dart';
 
 import '../design_system/tokens/design_tokens.dart';
+import '../features/steps/presentation/steps_theme.dart';
 
 class AppColors {
   AppColors._();
@@ -13,7 +15,7 @@ class AppColors {
   static const Color pink = Color(0xFFEC4899);   
   static const Color green = Color(0xFF45D9A8);  
   static const Color red = Color(0xFFFF6B6B);    
-  static const Color surface = Color(0xFFF7F8FA);
+  static const Color surface = Color(0xFFFFFFFF);
   static const Color surfaceDark = Color(0xFF111318);
   static const Color textPrimary = Color(0xFF0F172A);
   static const Color textSecondary = Color(0xFF475569);
@@ -60,10 +62,52 @@ ThemeData buildTheme(
   TextTheme? baseTextTheme,
 }) {
   final bool isDark = brightness == Brightness.dark;
-  final ColorScheme colorScheme = ColorScheme.fromSeed(
-    seedColor: AppColors.purple,
-    brightness: brightness,
+  final FlexSchemeColor scheme = const FlexSchemeColor(
+    primary: AppColors.purple,
+    primaryContainer: Color(0xFFB07BF5),
+    secondary: Color(0xFF8A6CF6),
+    secondaryContainer: Color(0xFFD7CCFF),
+    tertiary: Color(0xFF5B7CFA),
+    tertiaryContainer: Color(0xFFD6E1FF),
+    appBarColor: Colors.transparent,
+    error: AppColors.error,
   );
+  final ThemeData flexTheme = isDark
+      ? FlexThemeData.dark(
+          colors: scheme,
+          surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
+          blendLevel: 10,
+          subThemesData: const FlexSubThemesData(
+            blendOnLevel: 16,
+            blendOnColors: false,
+            defaultRadius: 24,
+            cardRadius: 26,
+            inputDecoratorRadius: 18,
+            fabUseShape: true,
+            interactionEffects: true,
+          ),
+          visualDensity: FlexColorScheme.comfortablePlatformDensity,
+          useMaterial3: true,
+          textTheme: baseTextTheme,
+        )
+      : FlexThemeData.light(
+          colors: scheme,
+          surfaceMode: FlexSurfaceMode.highScaffoldLowSurface,
+          blendLevel: 8,
+          subThemesData: const FlexSubThemesData(
+            blendOnLevel: 8,
+            blendOnColors: false,
+            defaultRadius: 24,
+            cardRadius: 26,
+            inputDecoratorRadius: 18,
+            fabUseShape: true,
+            interactionEffects: true,
+          ),
+          visualDensity: FlexColorScheme.comfortablePlatformDensity,
+          useMaterial3: true,
+          textTheme: baseTextTheme,
+        );
+  final ColorScheme colorScheme = flexTheme.colorScheme;
   final TextTheme textTheme = AppTextStyles.create(
     brightness: brightness,
     colorScheme: colorScheme,
@@ -72,12 +116,10 @@ ThemeData buildTheme(
   final AppShadowTheme shadowTheme = AppShadowTheme.fromBrightness(brightness);
   final AppGradientTheme gradientTheme = AppGradientTheme.fromColorScheme(colorScheme);
 
-  return ThemeData(
-    useMaterial3: true,
-    brightness: brightness,
+  return flexTheme.copyWith(
     colorScheme: colorScheme,
     textTheme: textTheme,
-    scaffoldBackgroundColor: isDark ? AppColors.surfaceDark : AppColors.surface,
+    scaffoldBackgroundColor: Colors.transparent,
     focusColor: colorScheme.primary.withValues(alpha: 0.14),
     hoverColor: colorScheme.primary.withValues(alpha: 0.06),
     dividerColor: colorScheme.outlineVariant.withValues(
@@ -86,6 +128,7 @@ ThemeData buildTheme(
     extensions: <ThemeExtension<dynamic>>[
       shadowTheme,
       gradientTheme,
+      StepsTheme.fromBrightness(brightness),
     ],
     cardTheme: CardThemeData(
       elevation: AppElevations.none,
@@ -112,42 +155,23 @@ ThemeData buildTheme(
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       showUnselectedLabels: true,
-      elevation: AppElevations.lg,
-      selectedIconTheme: IconThemeData(size: AppIconSizes.md),
-      unselectedIconTheme: IconThemeData(size: AppIconSizes.md),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      height: 72,
-      backgroundColor: isDark
-          ? const Color(0xFF171A22)
-          : Colors.white.withValues(alpha: 0.96),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       surfaceTintColor: Colors.transparent,
+      shadowColor: Colors.transparent,
       indicatorColor: colorScheme.secondaryContainer.withValues(
         alpha: isDark ? 0.9 : 0.8,
       ),
-      labelTextStyle: WidgetStateProperty.resolveWith((states) {
-        final TextStyle base = textTheme.labelMedium ?? const TextStyle();
-        if (states.contains(WidgetState.selected)) {
-          return base.copyWith(
-            color: colorScheme.onSecondaryContainer,
-            fontWeight: FontWeight.w700,
-          );
-        }
-        return base.copyWith(color: colorScheme.onSurfaceVariant);
-      }),
-      iconTheme: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) {
-          return IconThemeData(
-            color: colorScheme.onSecondaryContainer,
-            size: AppIconSizes.md,
-          );
-        }
-        return IconThemeData(
-          color: colorScheme.onSurfaceVariant,
-          size: AppIconSizes.md,
-        );
-      }),
+    ),
+    bottomAppBarTheme: const BottomAppBarThemeData(
+      color: Colors.transparent,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
     ),
     navigationRailTheme: NavigationRailThemeData(
       backgroundColor: Colors.transparent,

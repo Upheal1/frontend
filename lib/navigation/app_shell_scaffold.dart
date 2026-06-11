@@ -12,13 +12,14 @@ import '../features/community/services/community_supabase.dart';
 import '../models/auth_model.dart';
 import '../models/focus_session_model.dart';
 import '../navigation/app_navigation_keys.dart';
+import '../navigation/upheal_scaffold.dart';
 import '../screens/app_blocked_screen.dart';
 import '../services/app_blocking_service.dart';
 import '../services/threat_monitor_service.dart';
 import '../services/vpn_controller.dart';
 import '../use_cases/evaluate_blocking_use_case.dart';
 import '../viewmodels/blocked_app_view_model.dart';
-import '../widgets/theme_switcher.dart';
+import '../widgets/theme_toggle.dart';
 import 'app_routes.dart';
 
 class AppShellScaffold extends StatefulWidget {
@@ -48,13 +49,6 @@ class _AppShellScaffoldState extends State<AppShellScaffold> {
     _threatMonitor.startMonitoring();
     startUnifiedSecurityShield();
     _platform.setMethodCallHandler(_handleNativeCall);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      _maybeShowAssessment();
-    });
   }
 
   @override
@@ -303,68 +297,60 @@ class _AppShellScaffoldState extends State<AppShellScaffold> {
     final bool isDark = theme.brightness == Brightness.dark;
     final Color selectedColor = isDark ? AppColors.purple : AppColors.teal;
     final String location = GoRouterState.of(context).uri.path;
+    final bool isAssessment = location.startsWith('/app/assessment');
     final bool useSidebar = responsive.useSidebarNavigation;
-    
-    // Directly use the navigation shell - it handles its own state
-    // Adding extra AnimatedSwitcher can cause black screens
+
     final Widget shellBody = widget.navigationShell;
 
-    return Scaffold(
-      key: rootScaffoldKey,
-      drawer: useSidebar
-          ? null
-          : Drawer(
-              backgroundColor: isDark ? const Color(0xFF1B1B1B) : Colors.white,
-              child: _ShellNavigationPanel(
-                location: location,
-                selectedColor: selectedColor,
-                isDark: isDark,
-                currentIndex: widget.navigationShell.currentIndex,
-                onBranchSelected: _goToBranch,
-                onRouteSelected: _goToDrawerRoute,
-              ),
-            ),
-      body: useSidebar
-          ? Row(
-              children: <Widget>[
-                SizedBox(
-                  width: responsive.space(280, minScale: 1, maxScale: 1.2),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF161922) : Colors.white,
-                      border: Border(
-                        right: BorderSide(color: theme.dividerColor),
-                      ),
-                    ),
-                    child: _ShellNavigationPanel(
-                      location: location,
-                      selectedColor: selectedColor,
-                      isDark: isDark,
-                      currentIndex: widget.navigationShell.currentIndex,
-                      onBranchSelected: _goToBranch,
-                      onRouteSelected: _goToRoute,
-                    ),
+    if (useSidebar) {
+      return Scaffold(
+        key: rootScaffoldKey,
+        backgroundColor: Colors.transparent,
+        extendBody: true,
+        body: Row(
+          children: <Widget>[
+            SizedBox(
+              width: responsive.space(280, minScale: 1, maxScale: 1.2),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF161922) : Colors.white,
+                  border: Border(
+                    right: BorderSide(color: theme.dividerColor),
                   ),
                 ),
-                Expanded(child: shellBody),
-              ],
-            )
-          : shellBody,
-      bottomNavigationBar: useSidebar
-          ? null
-          : NavigationBar(
-              selectedIndex: widget.navigationShell.currentIndex,
-              onDestinationSelected: _goToBranch,
-              destinations: appBottomNavDestinations
-                  .map(
-                    (AppBranchDestination item) => NavigationDestination(
-                      icon: Icon(item.icon),
-                      label: item.label,
-                      tooltip: item.label,
-                    ),
-                  )
-                  .toList(growable: false),
+                child: _ShellNavigationPanel(
+                  location: location,
+                  selectedColor: selectedColor,
+                  isDark: isDark,
+                  currentIndex: widget.navigationShell.currentIndex,
+                  onBranchSelected: _goToBranch,
+                  onRouteSelected: _goToRoute,
+                ),
+              ),
             ),
+            Expanded(child: shellBody),
+          ],
+        ),
+      );
+    }
+
+    return UpHealScaffold(
+      hideNav: isAssessment,
+      drawer: Drawer(
+        backgroundColor: isDark ? const Color(0xFF1B1B1B) : Colors.white,
+        child: _ShellNavigationPanel(
+          location: location,
+          selectedColor: selectedColor,
+          isDark: isDark,
+          currentIndex: widget.navigationShell.currentIndex,
+          onBranchSelected: _goToBranch,
+          onRouteSelected: _goToDrawerRoute,
+        ),
+      ),
+      body: shellBody,
+      currentIndex: widget.navigationShell.currentIndex,
+      onTap: _goToBranch,
+      onFab: () => _goToBranch(2),
     );
   }
 }
@@ -484,7 +470,7 @@ class _ShellNavigationPanel extends StatelessWidget {
                 responsive.space(AppSpacing.lg),
                 responsive.space(AppSpacing.sm),
               ),
-              child: const ThemeSwitcher(),
+              child: const ThemeToggle(),
             ),
           ),
           SliverToBoxAdapter(

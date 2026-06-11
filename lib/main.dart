@@ -1,12 +1,13 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderScope;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'config/community_supabase_env.dart';
 import 'constants/app_colors.dart';
+import 'theme/upheal_theme_data.dart';
 import 'design_system/responsive/responsive.dart';
 import 'models/mission_model.dart';
 import 'models/user_model.dart';
@@ -48,9 +49,13 @@ import 'services/challenge_service.dart';
 import 'services/badge_provider.dart';
 import 'widgets/rewards/reward_listener.dart';
 import 'avatar/services/avatar_provider.dart';
+import 'avatar/services/avatar_progression_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Enable edge-to-edge so the system navigation bar is transparent
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   // Set up error handling
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -131,16 +136,18 @@ Future<void> main() async {
   try {
     // Ensure SharedPreferences is ready before starting the app
     await SharedPreferences.getInstance();
-    runApp(const UpHealApp());
+    runApp(const ProviderScope(child: UpHealApp()));
   } catch (e, stackTrace) {
     debugPrint('Error running app: $e');
     debugPrint('Stack trace: $stackTrace');
     // Try to show a minimal error screen
     runApp(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Text('Error: $e'),
+      const ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: Text('App failed to start'),
+            ),
           ),
         ),
       ),
@@ -198,8 +205,8 @@ class _SystemUIWrapperState extends State<_SystemUIWrapper> {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-        systemNavigationBarColor:
-        isDark ? const Color(0xFF111318) : const Color(0xFFF4F7F5),
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
         systemNavigationBarIconBrightness:
         isDark ? Brightness.light : Brightness.dark,
       ),
@@ -263,6 +270,13 @@ class UpHealApp extends StatelessWidget {
               badges: 5,
               rank: 42,
             );
+          },
+        ),
+        ChangeNotifierProxyProvider<UserModel, AvatarProgressionProvider>(
+          create: (_) => AvatarProgressionProvider()..load(),
+          update: (_, user, prev) {
+            prev!.syncWithLevel(user.level);
+            return prev;
           },
         ),
         ChangeNotifierProxyProvider5<StreakState, ChallengeService,
@@ -351,14 +365,8 @@ class UpHealApp extends StatelessWidget {
           final appRouter = context.read<AppRouter>();
           return MaterialApp.router(
             title: 'UpHeal',
-            theme: buildTheme(
-              Brightness.light,
-              baseTextTheme: textTheme,
-            ),
-            darkTheme: buildTheme(
-              Brightness.dark,
-              baseTextTheme: textTheme,
-            ),
+            theme: UpHealTheme.light(),
+            darkTheme: UpHealTheme.dark(),
             themeMode: themeModel.themeMode,
             routerConfig: appRouter.router,
             debugShowCheckedModeBanner: false,

@@ -253,7 +253,7 @@ class _NotificationSettingsScreenState
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF7F8FA),
+      backgroundColor: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFFFFFFF),
       appBar: AppBar(
         backgroundColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
         elevation: 0,

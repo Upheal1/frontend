@@ -6,7 +6,7 @@ import 'upheal_api.dart';
 import 'screen_time_service.dart';
 
 /// Repository that wraps [UphealApi] roadmap endpoints and converts raw
-/// `Map<String,dynamic>` responses into typed [RoadmapResponse] objects.
+/// `Map<String,dynamic>` responses into typed [RoadmapFullResponse] objects.
 ///
 /// Provides enhanced error handling, retry logic, and screen time integration.
 class RoadmapRepository {
@@ -15,18 +15,18 @@ class RoadmapRepository {
   final UphealApi _api;
 
   /// Cached roadmap to prevent redundant API calls
-  RoadmapResponse? _cachedRoadmap;
+  RoadmapFullResponse? _cachedRoadmap;
   DateTime? _lastFetchTime;
   static const Duration _cacheValidDuration = Duration(minutes: 5);
 
-  /// Calls `POST /api/roadmap` and returns a typed [RoadmapResponse].
+  /// Calls `POST /api/roadmap` and returns a typed [RoadmapFullResponse].
   ///
   /// [userId]         — Supabase user UUID (required).
   /// [answers]        — Optional GAD-7/PHQ-9 answer map.
   /// [screenTimeData] — Optional per-app screen time payload.
   /// [topN]           — Number of tasks to return (1–10).
   /// [retries]        — Number of retry attempts on failure (default 2).
-  Future<RoadmapResponse> generateRoadmap({
+  Future<RoadmapFullResponse> generateRoadmap({
     required String userId,
     Map<String, int>? answers,
     Map<String, dynamic>? screenTimeData,
@@ -47,7 +47,7 @@ class RoadmapRepository {
           topN: topN,
         );
         
-        final response = RoadmapResponse.fromJson(raw);
+        final response = RoadmapFullResponse.fromJson(raw);
         
         // Update cache
         _cachedRoadmap = response;
@@ -80,7 +80,7 @@ class RoadmapRepository {
   ///
   /// Uses cached data if available and not expired.
   /// Throws if the user is unauthenticated or has no roadmap yet.
-  Future<RoadmapResponse> getCurrentRoadmap(
+  Future<RoadmapFullResponse> getCurrentRoadmap(
     String userId, {
     bool forceRefresh = false,
     int retries = 2,
@@ -96,7 +96,7 @@ class RoadmapRepository {
     for (int attempt = 0; attempt <= retries; attempt++) {
       try {
         final raw = await _api.roadmapStatus(userId);
-        final response = RoadmapResponse.fromJson(raw);
+        final response = RoadmapFullResponse.fromJson(raw);
         
         // Update cache
         _cachedRoadmap = response;
@@ -133,12 +133,12 @@ class RoadmapRepository {
   /// roadmaps for this user (most recent first).
   ///
   /// Returns an empty list if the endpoint responds with 404.
-  Future<List<RoadmapResponse>> getRoadmapHistory(String userId) async {
+  Future<List<RoadmapFullResponse>> getRoadmapHistory(String userId) async {
     try {
       final raw = await _api.roadmapHistory(userId);
       final list = raw['roadmaps'] as List<dynamic>? ?? [];
       return list
-          .map((e) => RoadmapResponse.fromJson(e as Map<String, dynamic>))
+          .map((e) => RoadmapFullResponse.fromJson(e as Map<String, dynamic>))
           .toList();
     } on Exception catch (e) {
       if (e.toString().contains('404') ||

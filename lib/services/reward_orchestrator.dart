@@ -62,6 +62,16 @@ final class UrgeResisted extends RewardEvent {
   });
 }
 
+final class AvatarUnlocked extends RewardEvent {
+  final String avatarName;
+  final String avatarSrc;
+
+  const AvatarUnlocked({
+    required this.avatarName,
+    required this.avatarSrc,
+  });
+}
+
 /// Central queue for reward moments (XP, level ups, streak milestones, etc.).
 ///
 /// Screens can listen to this notifier and consume events to show

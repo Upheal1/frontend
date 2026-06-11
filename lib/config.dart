@@ -23,6 +23,6 @@ const String SUPABASE_ANON_KEY = String.fromEnvironment(
 // API Configuration
 const String API_BASE_URL = String.fromEnvironment(
         'UPHEAL_API_URL',
-        defaultValue: 'http://172.16.26.61:8000',
+        defaultValue: 'https://upheal-rag.onrender.com'
 );
 

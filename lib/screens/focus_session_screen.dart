@@ -8,6 +8,7 @@ import '../models/hive/focus_session_history.dart';
 import '../services/focus_session_service.dart';
 import '../widgets/focus/session_timer_widget.dart';
 import '../widgets/focus/blocked_apps_selector.dart';
+import 'premium_focus_timer_screen.dart';
 
 class FocusSessionScreen extends StatefulWidget {
   const FocusSessionScreen({super.key});
@@ -42,6 +43,19 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
     state.startSession(
       type: _selectedType,
       blockedApps: _tempSelectedApps,
+    );
+    
+    // Open premium full-screen timer
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const PremiumFocusTimerScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
     );
   }
 

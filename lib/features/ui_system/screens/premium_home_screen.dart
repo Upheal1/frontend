@@ -68,6 +68,7 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A2E),
+      extendBody: true,
       body: Stack(
         children: [
           IndexedStack(
@@ -128,23 +129,28 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
               ),
             ).animate().fadeIn(duration: 300.ms).slideX(begin: 0.3),
           ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: MediaQuery.of(context).padding.bottom,
+            child: PremiumBottomNavBar(
+              currentIndex: _currentIndex,
+              onTap: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              items: const [
+                BottomNavItem(icon: LucideIcons.home, label: 'Home'),
+                BottomNavItem(icon: LucideIcons.bookOpen, label: 'Journal'),
+                BottomNavItem(icon: LucideIcons.target, label: 'Focus'),
+                BottomNavItem(icon: LucideIcons.barChart3, label: 'Progress'),
+                BottomNavItem(icon: LucideIcons.user, label: 'Profile'),
+              ],
+              onFABTap: _openQuickActions,
+            ),
+          ),
         ],
-      ),
-      bottomNavigationBar: PremiumBottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        items: const [
-          BottomNavItem(icon: LucideIcons.home, label: 'Home'),
-          BottomNavItem(icon: LucideIcons.bookOpen, label: 'Journal'),
-          BottomNavItem(icon: LucideIcons.target, label: 'Focus'),
-          BottomNavItem(icon: LucideIcons.barChart3, label: 'Progress'),
-          BottomNavItem(icon: LucideIcons.user, label: 'Profile'),
-        ],
-        onFABTap: _openQuickActions,
       ),
     );
   }

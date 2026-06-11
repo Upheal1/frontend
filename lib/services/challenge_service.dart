@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../avatar/services/avatar_progression_provider.dart';
 import '../gamification/xp_config.dart';
 import '../models/challenge_model.dart';
 import '../models/streak_model.dart';
@@ -205,6 +206,8 @@ class ChallengeService extends ChangeNotifier {
     final userModel = Provider.of<UserModel>(context, listen: false);
     final rewardsOrchestrator =
         Provider.of<rewards.RewardOrchestrator>(context, listen: false);
+    final avatarProgression =
+        Provider.of<AvatarProgressionProvider>(context, listen: false);
 
     final previousLevel = userModel.level;
 
@@ -232,6 +235,16 @@ class ChallengeService extends ChangeNotifier {
           newTitle: 'Level $newLevel',
         ),
       );
+
+      final newlyUnlocked = avatarProgression.checkAndUnlock(newLevel);
+      for (final avatar in newlyUnlocked) {
+        rewardsOrchestrator.queueReward(
+          rewards.AvatarUnlocked(
+            avatarName: avatar.name,
+            avatarSrc: avatar.src,
+          ),
+        );
+      }
     }
 
     await StreakService.recordActivity(

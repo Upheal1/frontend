@@ -12,7 +12,6 @@ import '../models/user_model.dart';
 import '../models/streak_model.dart';
 import '../constants/app_colors.dart';
 import '../gamification/xp_config.dart';
-import '../widgets/rewards/urge_breathing_widget.dart';
 import '../services/comeback_reward_service.dart';
 import '../navigation/app_routes.dart';
 import 'journal_screen.dart';
@@ -22,7 +21,12 @@ import 'ai_chat_screen.dart';
 import 'insights_screen.dart';
 import '../widgets/drawer_menu_button.dart';
 import '../widgets/traveler_viewer.dart';
+import '../avatar/models/avatar_unlock_config.dart';
+import '../avatar/services/avatar_progression_provider.dart';
 import '../features/community/ui/community_hub_screen.dart';
+import '../design_system/tokens/design_tokens.dart';
+import '../shared/theme/upheal_home_theme.dart';
+import '../shared/widgets/upheal_home_widgets.dart';
 
 // Helper class to hold selected data for minimal rebuilds
 class _HomeScreenData {
@@ -54,12 +58,16 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Short-lived greeting at the top of Home (no avatar row — replaced old welcome card).
   bool _showWelcomeBanner = true;
   Timer? _welcomeBannerTimer;
+  bool _showRotateHint = true;
 
   @override
   void initState() {
     super.initState();
     _welcomeBannerTimer = Timer(const Duration(seconds: 10), () {
       if (mounted) setState(() => _showWelcomeBanner = false);
+    });
+    Timer(const Duration(seconds: 5), () {
+      if (mounted) setState(() => _showRotateHint = false);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -86,7 +94,28 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _welcomeBannerTimer?.cancel();
+    _showRotateHint = false;
     super.dispose();
+  }
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  String _dateLabel() {
+    const days = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+      'Friday', 'Saturday', 'Sunday'
+    ];
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    final now = DateTime.now();
+    return '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
   }
 
   @override
@@ -101,70 +130,84 @@ class _HomeScreenState extends State<HomeScreen> {
         final missions = data.missions;
         final user = data.user;
 
-        return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => UrgeBreathingWidget.show(context),
-            backgroundColor: AppColors.green,
-            icon: const Icon(Icons.air, color: Colors.white),
-            label: const Text(
-              "I'm feeling an urge",
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-            ),
-          ),
-          appBar: AppBar(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            elevation: 0,
-            leading: DrawerMenuButton(
-              iconColor: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white
-                  : AppColors.textPrimary,
-            ),
-            title: Text(
-              'UpHeal',
-              style: GoogleFonts.inter(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white
-                    : AppColors.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+        return UpHealScaffold(
+          body: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _buildHeader(context, user)),
+              SliverToBoxAdapter(
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 420),
+                  curve: Curves.easeInOutCubic,
+                  alignment: Alignment.topCenter,
+                  clipBehavior: Clip.hardEdge,
+                  child: _showWelcomeBanner
+                      ? Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
+                          child: _buildEphemeralWelcomeBanner(context, user),
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ),
-            ),
-            actions: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg),
+                  child: _buildTravelerSection(context, user),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg),
+                  child: _buildHomeJourneyPanel(context, user, missions),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ───────────────────────────── HEADER ─────────────────────────────
+
+  Widget _buildHeader(BuildContext context, UserModel user) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
+    final topPad = MediaQuery.of(context).padding.top;
+    return Padding(
+      padding: EdgeInsets.only(
+        top: topPad + 8,
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        bottom: AppSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              DrawerMenuButton(
+                iconColor: isDark ? Colors.white : tokens.primaryText,
+              ),
+              const Spacer(),
               Container(
-                margin: const EdgeInsets.only(right: 16),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  gradient: LinearGradient(
-                    colors: Theme.of(context).brightness == Brightness.dark
-                        ? [
-                            Colors.white.withOpacity(0.1),
-                            Colors.white.withOpacity(0.05),
-                          ]
-                        : [
-                            AppColors.textPrimary.withOpacity(0.05),
-                            AppColors.textPrimary.withOpacity(0.02),
-                          ],
-                  ),
-                  border: Border.all(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white.withOpacity(0.2)
-                        : AppColors.textPrimary.withOpacity(0.1),
-                    width: 1,
-                  ),
+                  borderRadius: AppRadius.sm,
+                  color: isDark ? const Color(0xFF1C1F26) : tokens.cardFill,
+                  boxShadow: context.appShadows.soft,
                 ),
                 child: IconButton(
                   icon: Icon(
                     LucideIcons.bell,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : AppColors.textPrimary,
+                    color: isDark ? Colors.white : tokens.primaryText,
                     size: 20,
                   ),
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => const NotificationSettingsScreen(),
+                      builder: (_) => const NotificationSettingsScreen(),
                     ),
                   ),
                   tooltip: 'Notifications',
@@ -172,45 +215,40 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Welcome sits above the companion card and reserves height so the
-                  // companion block animates down / back up when this shows or hides.
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 420),
-                    curve: Curves.easeInOutCubic,
-                    alignment: Alignment.topCenter,
-                    clipBehavior: Clip.hardEdge,
-                    child: _showWelcomeBanner
-                        ? Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _buildEphemeralWelcomeBanner(context, user),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                  // 3D Traveler (GLB via o3d / model-viewer)
-                  _buildTravelerSection(context, user),
-                  const SizedBox(height: 20),
-
-                  _buildHomeJourneyPanel(context, user, missions),
-                ],
-              ),
+          const SizedBox(height: 10),
+          Text(
+            _dateLabel(),
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.45)
+                  : tokens.faintText,
+              height: 1.2,
             ),
           ),
-        );
-      },
+          const SizedBox(height: 3),
+          Text(
+            '${_greeting()}, ${user.username}',
+            style: GoogleFonts.inter(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.48,
+              color: isDark ? Colors.white : tokens.primaryText,
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  /// Hero 3D viewer — centered Traveler model with theme-matched backdrop.
+  // ───────────────────────────── TRAVELER CARD ─────────────────────────────
+
   Widget _buildTravelerSection(BuildContext context, UserModel user) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final borderColor = Colors.white.withValues(alpha: isDark ? 0.08 : 0.12);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
+    final avatarProgression = context.read<AvatarProgressionProvider>();
+    final equippedSrc = avatarProgression.equippedSrc ?? AvatarUnlockConfig.all.first.src;
     final int currentJourneyDay = _journeyDay(user);
     final int nextLevelXp = XpConfig.totalXpForLevel(user.level + 1);
     final int xpToNextLevel = (nextLevelXp - user.xp).clamp(0, nextLevelXp);
@@ -218,24 +256,22 @@ class _HomeScreenState extends State<HomeScreen> {
     final double viewerHeight = MediaQuery.sizeOf(context).width >= 600 ? 340 : 248;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            const Color(0xFF243047),
-            const Color(0xFF2C4151),
-          ],
-        ),
-        border: Border.all(color: borderColor),
-        boxShadow: <BoxShadow>[
+        borderRadius: AppRadius.xl,
+        gradient: isDark
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF2D1B69), Color(0xFF1C1526)],
+              )
+            : null,
+        color: isDark ? null : tokens.cardFill,
+        boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.18),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
-            spreadRadius: -10,
+            color: tokens.glowColor,
+            blurRadius: 30,
+            offset: const Offset(0, 16),
           ),
         ],
       ),
@@ -252,21 +288,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white.withValues(alpha: 0.94),
+                      color: isDark ? Colors.white.withValues(alpha: 0.94) : tokens.primaryText,
                     ),
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFDBA2D),
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: AppRadius.pill,
                   boxShadow: <BoxShadow>[
                     BoxShadow(
                       color: const Color(0xFFFDBA2D).withValues(alpha: 0.45),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
+                      blurRadius: 16,
+                      offset: const Offset(0, 5),
                     ),
                   ],
                 ),
@@ -302,51 +338,54 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(22),
-                      gradient: RadialGradient(
-                        center: const Alignment(0, -0.15),
+                      gradient: const RadialGradient(
+                        center: Alignment.center,
                         radius: 0.9,
                         colors: <Color>[
-                          Colors.white.withValues(alpha: 0.08),
-                          Colors.white.withValues(alpha: 0.015),
-                          Colors.transparent,
+                          Color(0x33FFFFFF),
+                          Color(0x00FFFFFF),
                         ],
                       ),
                     ),
                   ),
                 ),
                 TravelerViewer(
+                  assetPath: equippedSrc,
                   height: viewerHeight,
                   backgroundColor: Colors.transparent,
                 ),
-                Positioned(
-                  bottom: 20,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF536279).withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(
-                          LucideIcons.rotateCcw,
-                          size: 14,
-                          color: Colors.white.withValues(alpha: 0.88),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Press & drag to rotate',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                        ),
-                      ],
+                if (_showRotateHint)
+                  Positioned(
+                    bottom: 20,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.black.withValues(alpha: 0.35)
+                            : Colors.white.withValues(alpha: 0.9),
+                        borderRadius: AppRadius.pill,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                            Icon(
+                              LucideIcons.rotateCcw,
+                              size: 14,
+                              color: isDark ? Colors.white.withValues(alpha: 0.88) : Colors.black87,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Press & drag to rotate',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white.withValues(alpha: 0.9) : Colors.black87,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -355,6 +394,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: <Widget>[
               Expanded(
                 child: _buildTravelerMetric(
+                  isDark: isDark,
                   icon: LucideIcons.trophy,
                   iconColor: const Color(0xFFF3C64C),
                   value: rankTitle,
@@ -363,6 +403,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: _buildTravelerMetric(
+                  isDark: isDark,
                   value: 'Day $currentJourneyDay',
                   subvalue: 'of 90',
                   label: '',
@@ -370,11 +411,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: _buildTravelerMetric(
+                  isDark: isDark,
                   icon: LucideIcons.zap,
                   iconColor: const Color(0xFF72F0A8),
                   value: _formatCompactNumber(user.xp),
                   label: 'XP',
-                  valueColor: Colors.white,
+                  valueColor: isDark ? Colors.white : tokens.primaryText,
                   alignment: CrossAxisAlignment.end,
                 ),
               ),
@@ -389,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFFE7EEFF),
+                    color: isDark ? const Color(0xFFE7EEFF) : tokens.primaryText,
                   ),
                 ),
               ),
@@ -398,7 +440,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Colors.white.withValues(alpha: 0.65),
+                  color: isDark ? Colors.white.withValues(alpha: 0.65) : tokens.faintText,
                 ),
               ),
             ],
@@ -409,8 +451,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: LinearProgressIndicator(
               minHeight: 7,
               value: user.levelProgress,
-              backgroundColor: Colors.white.withValues(alpha: 0.12),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF52DE97)),
+              backgroundColor: isDark ? Colors.white.withValues(alpha: 0.15) : tokens.trackColor,
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFA78BFA)),
             ),
           ),
         ],
@@ -419,6 +461,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTravelerMetric({
+    required bool isDark,
     IconData? icon,
     Color? iconColor,
     required String value,
@@ -427,6 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Color? valueColor,
     CrossAxisAlignment alignment = CrossAxisAlignment.start,
   }) {
+    final tokens = Theme.of(context).upHealHome;
     return Column(
       crossAxisAlignment: alignment,
       children: <Widget>[
@@ -434,7 +478,7 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (icon != null) ...<Widget>[
-              Icon(icon, size: 13, color: iconColor ?? Colors.white),
+              Icon(icon, size: 13, color: iconColor ?? (isDark ? Colors.white : tokens.faintText)),
               const SizedBox(width: 6),
             ],
             Flexible(
@@ -444,7 +488,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: valueColor ?? Colors.white,
+                  color: valueColor ?? (isDark ? Colors.white : tokens.primaryText),
                 ),
               ),
             ),
@@ -458,7 +502,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: Colors.white.withValues(alpha: 0.62),
+                color: isDark ? Colors.white.withValues(alpha: 0.62) : tokens.faintText,
               ),
             ),
           )
@@ -470,7 +514,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: GoogleFonts.inter(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: Colors.white.withValues(alpha: 0.62),
+              color: isDark ? Colors.white.withValues(alpha: 0.62) : tokens.faintText,
             ),
           ),
       ],
@@ -507,133 +551,222 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
+      children: [
+        const SizedBox(height: AppSpacing.xxl),
+        _buildSectionHeader(
+          context,
+          icon: LucideIcons.target,
+          label: "Today's Quest",
+          color: const Color(0xFF3B82F6),
+        ),
+        const SizedBox(height: AppSpacing.md),
         _buildTodayQuestCard(context, missions),
-        const SizedBox(height: 18),
+        const SizedBox(height: AppSpacing.xxl),
+        _buildSectionHeader(
+          context,
+          icon: LucideIcons.zap,
+          label: 'Quick Access',
+          color: const Color(0xFFF97316),
+        ),
+        const SizedBox(height: AppSpacing.md),
         _buildQuickAccessSection(context),
-        const SizedBox(height: 18),
+        const SizedBox(height: AppSpacing.xxl),
         _buildFocusSessionCard(context),
-        const SizedBox(height: 18),
+        const SizedBox(height: AppSpacing.lg),
         _buildContinueAscentCard(context, user),
-        const SizedBox(height: 14),
+        const SizedBox(height: AppSpacing.xxl),
+        _buildSectionHeader(
+          context,
+          icon: LucideIcons.calendar,
+          label: 'Upcoming',
+          color: const Color(0xFFA78BFA),
+        ),
+        const SizedBox(height: AppSpacing.md),
         _buildUpcomingCard(context, missions),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+            color: isDark ? Colors.white : tokens.primaryText,
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildTodayQuestCard(BuildContext context, List<Mission> missions) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
     final List<Mission> visibleMissions = missions.take(4).toList(growable: false);
-    final int completedCount = visibleMissions.where((mission) => mission.completed).length;
-    final double progress = visibleMissions.isEmpty
-        ? 0
-        : completedCount / visibleMissions.length;
+    final int completedCount = visibleMissions.where((m) => m.completed).length;
+    final double progress =
+        visibleMissions.isEmpty ? 0 : completedCount / visibleMissions.length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Icon(
-              LucideIcons.target,
-              size: 14,
-              color: const Color(0xFF6E9ED9),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              "Today's Quest",
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : const Color(0xFF1A2A44),
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: tokens.cardFill,
+        borderRadius: BorderRadius.circular(tokens.cardRadius),
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow == null
+            ? const <BoxShadow>[]
+            : <BoxShadow>[tokens.cardShadow!],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$completedCount/${visibleMissions.length} done',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.50)
+                        : tokens.secondaryText,
+                  ),
+                ),
               ),
-            ),
-            const Spacer(),
-            Text(
-              '$completedCount/${visibleMissions.length} done',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.62)
-                    : const Color(0xFF8D97A7),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  gradient: isDark
+                      ? null
+                      : UpHealHomeTheme.sharedAccentGradient,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.10)
+                      : null,
+                  borderRadius: BorderRadius.circular(tokens.pillRadius),
+                ),
+                child: Text(
+                  '${(progress * 100).round()}%',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.80)
+                        : Colors.white,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            minHeight: 5,
-            value: progress,
-            backgroundColor: isDark
-                ? Colors.white.withValues(alpha: 0.1)
-                : const Color(0xFFE4E8EF),
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF79A98A)),
+            ],
           ),
-        ),
-        const SizedBox(height: 14),
-        ...visibleMissions.map((mission) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _buildQuestTile(context, mission),
-          );
-        }),
-      ],
+          const SizedBox(height: 10),
+          // Accent-gradient progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(tokens.pillRadius),
+            child: SizedBox(
+              height: 5,
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.10)
+                          : tokens.trackColor,
+                    ),
+                  ),
+                  if (progress > 0)
+                    FractionallySizedBox(
+                      widthFactor: progress.clamp(0.0, 1.0),
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(0xFF5B7CFA),
+                              Color(0xFF8A6CF6),
+                              Color(0xFFB07BF5),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...visibleMissions.map(
+            (mission) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _buildQuestTile(context, mission),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildQuestTile(BuildContext context, Mission mission) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
+    final tokens = Theme.of(context).upHealHome;
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: AppRadius.md,
       onTap: () => context.read<MissionsModel>().toggleMission(mission.id),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
           color: isDark
-              ? Colors.white.withValues(alpha: 0.06)
+              ? Colors.white.withValues(alpha: 0.05)
               : mission.completed
-                  ? const Color(0xFFF1F7EE)
-                  : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+                  ? const Color(0xFFE8F5E9)
+                  : tokens.cardFill,
+          borderRadius: AppRadius.md,
           border: Border.all(
             color: isDark
-                ? Colors.white.withValues(alpha: 0.08)
-                : const Color(0xFFE6EAF0),
+                ? Colors.white.withValues(alpha: 0.07)
+                : mission.completed
+                    ? const Color(0xFFC8E6C9)
+                    : tokens.dividerColor,
           ),
-          boxShadow: isDark
-              ? const <BoxShadow>[]
-              : <BoxShadow>[
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
         ),
         child: Row(
-          children: <Widget>[
+          children: [
             Container(
               width: 20,
               height: 20,
               decoration: BoxDecoration(
                 color: mission.completed
-                    ? const Color(0xFF7BA886)
-                    : (isDark ? Colors.white.withValues(alpha: 0.14) : const Color(0xFFF0F3F7)),
+                    ? const Color(0xFF45D9A8)
+                    : (isDark
+                        ? Colors.white.withValues(alpha: 0.12)
+                        : tokens.trackColor),
                 shape: BoxShape.circle,
               ),
               child: mission.completed
-                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  ? const Icon(Icons.check, size: 13, color: Colors.white)
                   : null,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
+                children: [
                   Text(
                     mission.title,
                     maxLines: 1,
@@ -641,8 +774,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      decoration: mission.completed ? TextDecoration.lineThrough : null,
-                      color: isDark ? Colors.white : const Color(0xFF24324A),
+                      decoration: mission.completed
+                          ? TextDecoration.lineThrough
+                          : null,
+                      decorationColor: isDark
+                          ? Colors.white38
+                          : const Color(0xFF94A3B8),
+                      color: isDark
+                          ? Colors.white.withValues(
+                              alpha: mission.completed ? 0.45 : 0.90)
+                          : mission.completed
+                              ? tokens.faintText
+                              : tokens.primaryText,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -652,20 +795,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: isDark
-                          ? Colors.white.withValues(alpha: 0.56)
-                          : const Color(0xFF9AA3B2),
+                          ? Colors.white.withValues(alpha: 0.45)
+                          : tokens.faintText,
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              '+${mission.xpReward} XP',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFFEDB448),
+            // XP pill: accent gradient in light, tinted in dark
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                gradient: isDark ? null : UpHealHomeTheme.sharedAccentGradient,
+                color: isDark
+                    ? const Color(0xFFFDBA2D).withValues(alpha: 0.15)
+                    : null,
+                borderRadius: BorderRadius.circular(tokens.pillRadius),
+              ),
+              child: Text(
+                '+${mission.xpReward} XP',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: isDark
+                      ? const Color(0xFFEDB448)
+                      : Colors.white,
+                ),
               ),
             ),
           ],
@@ -676,83 +832,80 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildQuickAccessSection(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Icon(
-              LucideIcons.zap,
-              size: 14,
-              color: const Color(0xFFF0C15B),
+    return Row(
+      children: [
+        Expanded(
+          child: _buildQuickAccessTile(
+            context,
+            icon: LucideIcons.bookOpen,
+            label: 'Journal',
+            tileBg: isDark ? tokens.quickJournal : tokens.quickJournal,
+            chipColor: isDark ? tokens.quickJournalChip : tokens.quickJournalChip,
+            iconColor: isDark ? tokens.quickJournalIcon : tokens.quickJournalIcon,
+            labelColor: isDark
+                ? Colors.white.withValues(alpha: 0.85)
+                : tokens.quickJournalLabel,
+            isDark: isDark,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const JournalScreen()),
             ),
-            const SizedBox(width: 8),
-            Text(
-              'Quick Access',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : const Color(0xFF1A2A44),
-              ),
-            ),
-          ],
+          ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: _buildQuickAccessTile(
-                context,
-                icon: LucideIcons.bookOpen,
-                label: 'Journal',
-                background: const Color(0xFFE6F0E3),
-                iconColor: const Color(0xFF7AA08B),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const JournalScreen()),
-                ),
-              ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildQuickAccessTile(
+            context,
+            icon: LucideIcons.messageCircle,
+            label: 'AI Coach',
+            tileBg: isDark ? tokens.quickCoach : tokens.quickCoach,
+            chipColor: isDark ? tokens.quickCoachChip : tokens.quickCoachChip,
+            iconColor: isDark ? tokens.quickCoachIcon : tokens.quickCoachIcon,
+            labelColor: isDark
+                ? Colors.white.withValues(alpha: 0.85)
+                : tokens.quickCoachLabel,
+            isDark: isDark,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AiChatScreen()),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildQuickAccessTile(
-                context,
-                icon: LucideIcons.messageCircle,
-                label: 'AI Coach',
-                background: const Color(0xFFE4F0FD),
-                iconColor: const Color(0xFF75A3D9),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const AiChatScreen()),
-                ),
-              ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildQuickAccessTile(
+            context,
+            icon: LucideIcons.barChart3,
+            label: 'Insights',
+            tileBg: isDark ? tokens.quickInsights : tokens.quickInsights,
+            chipColor: isDark ? tokens.quickInsightsChip : tokens.quickInsightsChip,
+            iconColor: isDark ? tokens.quickInsightsIcon : tokens.quickInsightsIcon,
+            labelColor: isDark
+                ? Colors.white.withValues(alpha: 0.85)
+                : tokens.quickInsightsLabel,
+            isDark: isDark,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const InsightsScreen()),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildQuickAccessTile(
-                context,
-                icon: LucideIcons.barChart3,
-                label: 'Insights',
-                background: const Color(0xFFFBEFCF),
-                iconColor: const Color(0xFFE4BA5A),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const InsightsScreen()),
-                ),
-              ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildQuickAccessTile(
+            context,
+            icon: LucideIcons.users,
+            label: 'Groups',
+            tileBg: isDark ? tokens.quickGroups : tokens.quickGroups,
+            chipColor: isDark ? tokens.quickGroupsChip : tokens.quickGroupsChip,
+            iconColor: isDark ? tokens.quickGroupsIcon : tokens.quickGroupsIcon,
+            labelColor: isDark
+                ? Colors.white.withValues(alpha: 0.85)
+                : tokens.quickGroupsLabel,
+            isDark: isDark,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CommunityHubScreen()),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildQuickAccessTile(
-                context,
-                icon: LucideIcons.users,
-                label: 'Groups',
-                background: const Color(0xFFECE4FF),
-                iconColor: const Color(0xFF9A86E8),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const CommunityHubScreen()),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ],
     );
@@ -760,72 +913,58 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildFocusSessionCard(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    final tokens = Theme.of(context).upHealHome;
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.mediumImpact();
         const FocusSessionRoute().push<void>(context);
       },
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark
-                ? [
-                    const Color(0xFF2D1B69),
-                    const Color(0xFF1A1035),
-                  ]
-                : [
-                    const Color(0xFFF5F3FF),
-                    const Color(0xFFEDE9FE),
-                  ],
-          ),
-          borderRadius: BorderRadius.circular(24),
+          color: isDark ? null : tokens.cardFill,
+          gradient: isDark
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF2D1B69), Color(0xFF1A1035)],
+                )
+              : null,
+          borderRadius: AppRadius.xl,
           border: Border.all(
             color: isDark
-                ? Colors.white.withValues(alpha: 0.1)
-                : const Color(0xFFDDD6FE),
+                ? Colors.white.withValues(alpha: 0.09)
+                : tokens.cardBorder,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.purple.withValues(alpha: isDark ? 0.3 : 0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          boxShadow: tokens.cardShadow == null
+              ? const <BoxShadow>[]
+              : <BoxShadow>[tokens.cardShadow!],
         ),
         child: Row(
           children: [
             Container(
-              width: 60,
-              height: 60,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.purple,
-                    AppColors.purple.withValues(alpha: 0.7),
-                  ],
+                  colors: [Color(0xFFA78BFA), Color(0xFF7C3AED)],
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: AppRadius.md,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.purple.withValues(alpha: 0.4),
+                    color: const Color(0xFF7C3AED).withValues(alpha: 0.40),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: const Icon(
-                LucideIcons.timer,
-                color: Colors.white,
-                size: 28,
-              ),
+              child: const Icon(LucideIcons.timer,
+                  color: Colors.white, size: 26),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -833,9 +972,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'Focus Session',
                     style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : const Color(0xFF1F1669),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                      color: isDark ? Colors.white : tokens.primaryText,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -843,29 +983,34 @@ class _HomeScreenState extends State<HomeScreen> {
                     'Deep work without distractions',
                     style: GoogleFonts.inter(
                       fontSize: 13,
-                      color: isDark ? Colors.white70 : const Color(0xFF6B7280),
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.60)
+                          : tokens.secondaryText,
                     ),
                   ),
                 ],
               ),
             ),
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
                 color: isDark
-                    ? Colors.white.withValues(alpha: 0.1)
+                    ? Colors.white.withValues(alpha: 0.10)
                     : Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: AppRadius.sm,
               ),
               child: Icon(
                 LucideIcons.arrowRight,
-                size: 20,
-                color: isDark ? Colors.white70 : AppColors.purple,
+                size: 18,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.70)
+                    : const Color(0xFF7C3AED),
               ),
             ),
           ],
         ),
-      ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0, duration: 400.ms),
+      ).animate().fadeIn(duration: 400.ms).slideY(
+            begin: 0.1, end: 0, duration: 400.ms),
     );
   }
 
@@ -873,31 +1018,51 @@ class _HomeScreenState extends State<HomeScreen> {
     BuildContext context, {
     required IconData icon,
     required String label,
-    required Color background,
+    required Color tileBg,
+    required Color chipColor,
     required Color iconColor,
+    required Color labelColor,
+    required bool isDark,
     required VoidCallback onTap,
   }) {
+    final tokens = Theme.of(context).upHealHome;
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: AppRadius.lg,
       onTap: onTap,
       child: Container(
-        height: 96,
+        height: 100,
         decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(18),
+          color: tileBg,
+          borderRadius: AppRadius.lg,
+          border: isDark
+              ? Border.all(color: Colors.white.withValues(alpha: 0.07))
+              : Border.all(color: tokens.cardBorder),
+          boxShadow: isDark
+              ? null
+              : (tokens.cardShadow == null
+                  ? null
+                  : <BoxShadow>[tokens.cardShadow!]),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(icon, size: 20, color: iconColor),
-            const SizedBox(height: 12),
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: chipColor,
+                borderRadius: AppRadius.sm,
+              ),
+              child: Icon(icon, size: 20, color: iconColor),
+            ),
+            const SizedBox(height: 8),
             Text(
               label,
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF304056),
+                fontWeight: FontWeight.w700,
+                color: labelColor,
               ),
             ),
           ],
@@ -907,54 +1072,64 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildContinueAscentCard(BuildContext context, UserModel user) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
     final int journeyDay = _journeyDay(user);
-
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: AppRadius.lg,
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => const RoadmapScreen()),
+        MaterialPageRoute(builder: (_) => const RoadmapScreen()),
       ),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         decoration: BoxDecoration(
-          color: const Color(0xFF253A4C),
-          borderRadius: BorderRadius.circular(18),
+          color: tokens.cardFill,
+          borderRadius: AppRadius.lg,
+          border: Border.all(color: tokens.cardBorder),
+          boxShadow: tokens.cardShadow == null
+              ? null
+              : <BoxShadow>[tokens.cardShadow!],
         ),
         child: Row(
-          children: <Widget>[
+          children: [
             Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: isDark
+                    ? const Color(0xFF8A5CF0).withValues(alpha: 0.18)
+                    : const Color(0xFFEFE9FD),
+                borderRadius: AppRadius.sm,
               ),
-              child: const Icon(
-                LucideIcons.map,
-                size: 20,
-                color: Color(0xFF8CC5FF),
-              ),
+              child: Icon(LucideIcons.map,
+                  size: 20,
+                  color: isDark
+                      ? const Color(0xFFA78BFA)
+                      : const Color(0xFF8A5CF0)),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
+                children: [
                   Text(
                     'Continue Your Ascent',
                     style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.15,
+                      color: isDark ? Colors.white : tokens.primaryText,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Day $journeyDay · ${math.max(90 - journeyDay, 0)} days to summit',
                     style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withValues(alpha: 0.68),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.55)
+                          : tokens.secondaryText,
                     ),
                   ),
                 ],
@@ -963,7 +1138,9 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(
               LucideIcons.chevronRight,
               size: 18,
-              color: Colors.white.withValues(alpha: 0.8),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.45)
+                  : tokens.faintText,
             ),
           ],
         ),
@@ -973,106 +1150,74 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildUpcomingCard(BuildContext context, List<Mission> missions) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final Mission? nextMission = missions.where((mission) => !mission.completed).isEmpty
-        ? null
-        : missions.firstWhere((mission) => !mission.completed);
+    final tokens = Theme.of(context).upHealHome;
+    final Mission? nextMission =
+        missions.where((m) => !m.completed).isEmpty
+            ? null
+            : missions.firstWhere((m) => !m.completed);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Icon(
-              LucideIcons.calendar,
-              size: 14,
-              color: const Color(0xFFA486FF),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Upcoming',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : const Color(0xFF1A2A44),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: tokens.cardFill,
+        borderRadius: AppRadius.xl,
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow == null
+            ? null
+            : <BoxShadow>[tokens.cardShadow!],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : const Color(0xFFE6EAF0),
+                  ? const Color(0xFF8A5CF0).withValues(alpha: 0.20)
+                  : const Color(0xFFEFE9FD),
+              borderRadius: AppRadius.sm,
             ),
-            boxShadow: isDark
-                ? const <BoxShadow>[]
-                : <BoxShadow>[
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+            child: Icon(LucideIcons.users,
+                size: 18,
+                color: isDark
+                    ? const Color(0xFFA78BFA)
+                    : const Color(0xFF8A5CF0)),
           ),
-          child: Row(
-            children: <Widget>[
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1E9FF),
-                  borderRadius: BorderRadius.circular(10),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  nextMission != null
+                      ? 'Next Quest: ${nextMission.title}'
+                      : 'Group Session: Anxiety Support',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : tokens.primaryText,
+                  ),
                 ),
-                child: const Icon(
-                  LucideIcons.users,
-                  size: 17,
-                  color: Color(0xFF7B58C9),
+                const SizedBox(height: 3),
+                Text(
+                  nextMission != null ? nextMission.description : 'Tomorrow',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.50)
+                        : tokens.faintText,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      nextMission != null
-                          ? 'Next Quest: ${nextMission.title}'
-                          : 'Group Session: Anxiety Support',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : const Color(0xFF24324A),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      nextMission != null
-                          ? nextMission.description
-                          : 'Tomorrow',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.58)
-                            : const Color(0xFF97A0AF),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -1089,52 +1234,48 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Shown once per visit for [Duration(seconds: 10)] — replaces the old welcome card + avatar row.
   Widget _buildEphemeralWelcomeBanner(BuildContext context, UserModel user) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Material(
-      elevation: 6,
-      shadowColor: Colors.black26,
-      borderRadius: BorderRadius.circular(16),
-      color: isDark
-          ? Colors.white.withOpacity(0.08)
-          : Theme.of(context)
-              .colorScheme
-              .surfaceContainerHighest
-              .withOpacity(0.95),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        child: Row(
-          children: [
-            Icon(
-              LucideIcons.sparkles,
-              color: AppColors.green,
-              size: 22,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Welcome back, ${user.username}!',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
-                    ),
+    final tokens = Theme.of(context).upHealHome;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+      decoration: BoxDecoration(
+        color: tokens.cardFill,
+        borderRadius: AppRadius.md,
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow == null
+            ? null
+            : <BoxShadow>[tokens.cardShadow!],
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.sparkles, color: AppColors.green, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Welcome back, ${user.username}!',
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : tokens.primaryText,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Ready to focus and grow?',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: isDark ? Colors.white70 : AppColors.textSecondary,
-                    ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Ready to focus and grow?',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.55)
+                        : tokens.secondaryText,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
