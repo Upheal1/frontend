@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../constants/app_colors.dart';
+import '../../../shared/theme/upheal_home_theme.dart';
 
-  /// Shared calm / premium visuals for the UpHeal community surfaces.
+/// Shared calm / premium visuals for the UpHeal community surfaces.
+/// Delegates to [UpHealHomeTheme] tokens so community pages match the home page
+/// styling in both light and dark mode.
 class CommunityDecor {
   CommunityDecor._();
 
@@ -15,7 +18,7 @@ class CommunityDecor {
   static String groupCoverFor(String key) =>
       'https://picsum.photos/seed/$key/320/120';
 
-  // ── Brand palette (from AppColors) ───────────────────────────────────────────
+  // ── Brand palette (used for avatar borders, chip accents) ──────────────────
   static const Color lavender = AppColors.purple;
   static const Color lavenderLight = AppColors.blue;
   static const Color mint = AppColors.teal;
@@ -23,99 +26,69 @@ class CommunityDecor {
   static const Color roseAccent = AppColors.pink;
   static const Color warmGold = AppColors.warning;
 
+  // ── Convenience helpers ────────────────────────────────────────────────────
+  static UpHealHomeTheme _t(BuildContext context) =>
+      Theme.of(context).upHealHome;
+
   // ── Card / surface ─────────────────────────────────────────────────────────
 
-  /// Clean white card with a soft shadow (light) or dark-slate surface (dark).
-  static BoxDecoration glassCard(BuildContext context, {double radius = 22}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  /// Card decoration matching [UpHealHomeTheme] tokens (transparent glass in
+  /// dark mode, white + purple shadow in light mode).
+  static BoxDecoration glassCard(BuildContext context, {double? radius}) {
+    final t = _t(context);
     return BoxDecoration(
-      borderRadius: BorderRadius.circular(radius),
-      color: isDark ? AppColors.card : Colors.white,
-      border: isDark
-          ? Border.all(color: Colors.white.withValues(alpha: 0.07))
-          : Border.all(color: AppColors.surface),
-      boxShadow: isDark
-          ? []
-          : [
-              BoxShadow(
-                color: AppColors.textMuted.withValues(alpha: 0.07),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
+      borderRadius: BorderRadius.circular(radius ?? t.cardRadius),
+      color: t.cardFill,
+      border: Border.all(color: t.cardBorder),
+      boxShadow: t.cardShadow == null
+          ? const <BoxShadow>[]
+          : <BoxShadow>[t.cardShadow!],
     );
   }
 
   static BoxDecoration pillAccent(BuildContext context) {
+    final t = _t(context);
     return BoxDecoration(
       borderRadius: BorderRadius.circular(999),
       gradient: LinearGradient(
         colors: [
-          AppColors.purple.withValues(alpha: 0.18),
-          AppColors.teal.withValues(alpha: 0.14),
+          t.quickGroups.withValues(alpha: 0.45),
+          t.quickGroups.withValues(alpha: 0.25),
         ],
       ),
-      border: Border.all(color: AppColors.purple.withValues(alpha: 0.22)),
+      border: Border.all(color: t.quickGroups.withValues(alpha: 0.40)),
     );
   }
 
   // ── Backgrounds ────────────────────────────────────────────────────────────
 
-  static Gradient calmBackdrop(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    if (isDark) {
-      return const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [AppColors.surfaceDark, Color(0xFF0A0A12), AppColors.surfaceDark],
-      );
-    }
-    return const LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [AppColors.surface, Color(0xFFF1F4FF), Color(0xFFF8F9FF)],
-    );
-  }
+  /// Same background gradient used by the home page ([UpHealHomeTheme.pageGradient]).
+  static Gradient calmBackdrop(BuildContext context) => _t(context).pageGradient;
 
   static Gradient headerGradient(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    if (isDark) {
-      return LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          AppColors.purple.withValues(alpha: 0.20),
-          AppColors.teal.withValues(alpha: 0.12),
-        ],
-      );
-    }
+    final t = _t(context);
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        AppColors.purple.withValues(alpha: 0.12),
-        AppColors.teal.withValues(alpha: 0.08),
+        t.quickGroups.withValues(alpha: 0.40),
+        t.quickGroups.withValues(alpha: 0.15),
       ],
     );
   }
 
   // ── FAB gradient ───────────────────────────────────────────────────────────
-  static const Gradient fabGradient = LinearGradient(
-    colors: [lavender, mint],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-  );
+  /// Uses the same blue→purple gradient as the home page's accent.
+  static const Gradient fabGradient = UpHealHomeTheme.sharedAccentGradient;
 
   // ── Shimmer colors ─────────────────────────────────────────────────────────
   static Color shimmerBase(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF232636)
-        : const Color(0xFFEEEFF4);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF1F1A33) : const Color(0xFFEEEFF4);
   }
 
   static Color shimmerHighlight(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF2C3050)
-        : const Color(0xFFF8F9FF);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF2E2847) : const Color(0xFFF8F9FF);
   }
 }

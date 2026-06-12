@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/notification_service.dart';
 import '../models/notification_types.dart';
 import '../navigation/navigation_helpers.dart';
+import '../shared/theme/upheal_home_theme.dart';
+import '../constants/app_colors.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -252,93 +254,100 @@ class _NotificationSettingsScreenState
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFFFFFFF),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
           icon: Icon(
             LucideIcons.arrowLeft,
-            color: isDark ? Colors.white : Colors.black87,
+            color: tokens.primaryText,
           ),
           onPressed: () => safeGoBack(context),
         ),
         title: Text(
           'Notifications',
           style: GoogleFonts.inter(
-            color: isDark ? Colors.white : Colors.black87,
+            color: tokens.primaryText,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
         actions: [
           if (_isSaving)
-            const Padding(
-              padding: EdgeInsets.only(right: 16),
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
               child: SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.purple),
                 ),
               ),
             ),
         ],
       ),
-      body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Loading settings...',
-                    style: GoogleFonts.inter(
-                      color: isDark ? Colors.white70 : Colors.black54,
+      body: DecoratedBox(
+        decoration: BoxDecoration(gradient: tokens.pageGradient),
+        child: _isLoading
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.purple),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Text(
+                      'Loading settings...',
+                      style: GoogleFonts.inter(
+                        color: tokens.secondaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!_hasPermission) _buildPermissionCard(isDark),
+                    _buildMasterToggle(isDark),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('Notification Types', isDark),
+                    const SizedBox(height: 12),
+                    _buildNotificationTypesCard(isDark),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('Warning Threshold', isDark),
+                    const SizedBox(height: 12),
+                    _buildThresholdCard(isDark),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('Daily Summary', isDark),
+                    const SizedBox(height: 12),
+                    _buildSummaryTimeCard(isDark),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('Sound & Haptics', isDark),
+                    const SizedBox(height: 12),
+                    _buildSoundVibrationCard(isDark),
+                    const SizedBox(height: 32),
+                    _buildTestButton(isDark),
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!_hasPermission) _buildPermissionCard(isDark),
-                  _buildMasterToggle(isDark),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle('Notification Types', isDark),
-                  const SizedBox(height: 12),
-                  _buildNotificationTypesCard(isDark),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle('Warning Threshold', isDark),
-                  const SizedBox(height: 12),
-                  _buildThresholdCard(isDark),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle('Daily Summary', isDark),
-                  const SizedBox(height: 12),
-                  _buildSummaryTimeCard(isDark),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle('Sound & Haptics', isDark),
-                  const SizedBox(height: 12),
-                  _buildSoundVibrationCard(isDark),
-                  const SizedBox(height: 32),
-                  _buildTestButton(isDark),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
+      ),
     );
   }
 
   Widget _buildPermissionCard(bool isDark) {
+    final tokens = Theme.of(context).upHealHome;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
@@ -380,7 +389,7 @@ class _NotificationSettingsScreenState
                   'Tap enable to receive app notifications',
                   style: GoogleFonts.inter(
                     fontSize: 13,
-                    color: isDark ? Colors.white70 : Colors.black54,
+                    color: tokens.secondaryText,
                   ),
                 ),
               ],
@@ -410,22 +419,24 @@ class _NotificationSettingsScreenState
   }
 
   Widget _buildMasterToggle(bool isDark) {
+    final tokens = Theme.of(context).upHealHome;
+
     return Container(
       decoration: BoxDecoration(
         gradient: _settings.enabled
             ? LinearGradient(
                 colors: [
-                  const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                  const Color(0xFF6366F1).withValues(alpha: 0.1),
+                  AppColors.purple.withValues(alpha: 0.2),
+                  AppColors.purple.withValues(alpha: 0.1),
                 ],
               )
             : null,
-        color: _settings.enabled ? null : (isDark ? const Color(0xFF2A2A2A) : Colors.white),
+        color: _settings.enabled ? null : tokens.cardFill,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: _settings.enabled
-              ? const Color(0xFF8B5CF6).withValues(alpha: 0.3)
-              : (isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade200),
+              ? AppColors.purple.withValues(alpha: 0.3)
+              : tokens.cardBorder,
         ),
       ),
       child: SwitchListTile(
@@ -434,14 +445,14 @@ class _NotificationSettingsScreenState
           style: GoogleFonts.inter(
             fontWeight: FontWeight.w600,
             fontSize: 16,
-            color: isDark ? Colors.white : Colors.black87,
+            color: tokens.primaryText,
           ),
         ),
         subtitle: Text(
           _settings.enabled ? 'You\'ll receive all notifications' : 'Turn on to receive notifications',
           style: GoogleFonts.inter(
             fontSize: 13,
-            color: isDark ? Colors.white60 : Colors.black45,
+            color: tokens.secondaryText,
           ),
         ),
         value: _settings.enabled,
@@ -449,14 +460,15 @@ class _NotificationSettingsScreenState
           HapticFeedback.selectionClick();
           _updateSettings(_settings.copyWith(enabled: value));
         },
-        activeColor: const Color(0xFF8B5CF6),
-        activeTrackColor: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+        activeThumbColor: AppColors.purple,
+        activeTrackColor: AppColors.purple.withValues(alpha: 0.3),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     ).animate().fadeIn(duration: 300.ms, delay: 100.ms);
   }
 
   Widget _buildSectionTitle(String title, bool isDark) {
+    final tokens = Theme.of(context).upHealHome;
     return Padding(
       padding: const EdgeInsets.only(left: 4),
       child: Text(
@@ -464,7 +476,7 @@ class _NotificationSettingsScreenState
         style: GoogleFonts.inter(
           fontSize: 15,
           fontWeight: FontWeight.w700,
-          color: isDark ? Colors.white : Colors.black87,
+          color: tokens.primaryText,
           letterSpacing: 0.3,
         ),
       ),
@@ -472,13 +484,14 @@ class _NotificationSettingsScreenState
   }
 
   Widget _buildNotificationTypesCard(bool isDark) {
+    final tokens = Theme.of(context).upHealHome;
     final isEnabled = _settings.enabled;
     
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+        color: tokens.cardFill,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade200),
+        border: Border.all(color: tokens.cardBorder),
       ),
       child: Column(
         children: [
@@ -531,9 +544,10 @@ class _NotificationSettingsScreenState
   }
 
   Widget _divider(bool isDark) {
+    final tokens = Theme.of(context).upHealHome;
     return Divider(
       height: 1,
-      color: isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade200,
+      color: tokens.dividerColor,
       indent: 68,
     );
   }
@@ -548,6 +562,7 @@ class _NotificationSettingsScreenState
     required Function(bool) onChanged,
     required bool isDark,
   }) {
+    final tokens = Theme.of(context).upHealHome;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
@@ -564,16 +579,14 @@ class _NotificationSettingsScreenState
         style: GoogleFonts.inter(
           fontWeight: FontWeight.w600,
           fontSize: 15,
-          color: enabled
-              ? (isDark ? Colors.white : Colors.black87)
-              : (isDark ? Colors.white38 : Colors.black38),
+          color: enabled ? tokens.primaryText : tokens.faintText,
         ),
       ),
       subtitle: Text(
         subtitle,
         style: GoogleFonts.inter(
           fontSize: 12,
-          color: isDark ? Colors.white54 : Colors.black45,
+          color: tokens.secondaryText,
         ),
       ),
       trailing: Transform.scale(
@@ -581,22 +594,23 @@ class _NotificationSettingsScreenState
         child: Switch(
           value: value && enabled,
           onChanged: enabled ? (v) { HapticFeedback.selectionClick(); onChanged(v); } : null,
-          activeColor: const Color(0xFF8B5CF6),
-          activeTrackColor: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+          activeThumbColor: AppColors.purple,
+          activeTrackColor: AppColors.purple.withValues(alpha: 0.3),
         ),
       ),
     );
   }
 
   Widget _buildThresholdCard(bool isDark) {
+    final tokens = Theme.of(context).upHealHome;
     final isEnabled = _settings.enabled;
     
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+        color: tokens.cardFill,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade200),
+        border: Border.all(color: tokens.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -605,7 +619,7 @@ class _NotificationSettingsScreenState
             children: [
               Icon(
                 LucideIcons.layers,
-                color: isEnabled ? const Color(0xFF8B5CF6) : Colors.grey,
+                color: isEnabled ? AppColors.purple : tokens.faintText,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -614,7 +628,7 @@ class _NotificationSettingsScreenState
                 style: GoogleFonts.inter(
                   fontWeight: FontWeight.w600,
                   fontSize: 15,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: tokens.primaryText,
                 ),
               ),
             ],
@@ -624,7 +638,7 @@ class _NotificationSettingsScreenState
             'Get notified when you reach this percentage of your app limit',
             style: GoogleFonts.inter(
               fontSize: 13,
-              color: isDark ? Colors.white60 : Colors.black54,
+              color: tokens.secondaryText,
             ),
           ),
           const SizedBox(height: 20),
@@ -643,6 +657,7 @@ class _NotificationSettingsScreenState
   }
 
   Widget _buildThresholdChip(int threshold, bool isEnabled, bool isDark) {
+    final tokens = Theme.of(context).upHealHome;
     final isSelected = _settings.warningThreshold == threshold;
     
     return Expanded(
@@ -658,14 +673,12 @@ class _NotificationSettingsScreenState
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFF8B5CF6)
-                : (isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade100),
+                ? AppColors.purple
+                : tokens.trackColor,
             borderRadius: BorderRadius.circular(12),
             border: isSelected
                 ? null
-                : Border.all(
-                    color: isDark ? Colors.white24 : Colors.grey.shade300,
-                  ),
+                : Border.all(color: tokens.cardBorder),
           ),
           child: Center(
             child: Text(
@@ -675,9 +688,7 @@ class _NotificationSettingsScreenState
                 fontSize: 15,
                 color: isSelected
                     ? Colors.white
-                    : (isEnabled
-                        ? (isDark ? Colors.white70 : Colors.black54)
-                        : Colors.grey),
+                    : (isEnabled ? tokens.secondaryText : tokens.faintText),
               ),
             ),
           ),
@@ -687,6 +698,7 @@ class _NotificationSettingsScreenState
   }
 
   Widget _buildSummaryTimeCard(bool isDark) {
+    final tokens = Theme.of(context).upHealHome;
     final isEnabled = _settings.enabled && _settings.summaryEnabled;
     final timeString = TimeOfDay(
       hour: _settings.summaryTime.hour,
@@ -695,9 +707,9 @@ class _NotificationSettingsScreenState
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+        color: tokens.cardFill,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade200),
+        border: Border.all(color: tokens.cardBorder),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -715,14 +727,14 @@ class _NotificationSettingsScreenState
           style: GoogleFonts.inter(
             fontWeight: FontWeight.w600,
             fontSize: 15,
-            color: isDark ? Colors.white : Colors.black87,
+            color: tokens.primaryText,
           ),
         ),
         subtitle: Text(
           isEnabled ? 'Daily at $timeString' : 'Disabled',
           style: GoogleFonts.inter(
             fontSize: 13,
-            color: isDark ? Colors.white60 : Colors.black54,
+            color: tokens.secondaryText,
           ),
         ),
         trailing: GestureDetector(
@@ -736,14 +748,14 @@ class _NotificationSettingsScreenState
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: isEnabled
-                  ? const Color(0xFF8B5CF6).withValues(alpha: 0.1)
-                  : Colors.grey.withValues(alpha: 0.1),
+                  ? AppColors.purple.withValues(alpha: 0.1)
+                  : tokens.faintText.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               timeString,
               style: GoogleFonts.inter(
-                color: isEnabled ? const Color(0xFF8B5CF6) : Colors.grey,
+                color: isEnabled ? AppColors.purple : tokens.faintText,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
@@ -755,13 +767,14 @@ class _NotificationSettingsScreenState
   }
 
   Widget _buildSoundVibrationCard(bool isDark) {
+    final tokens = Theme.of(context).upHealHome;
     final isEnabled = _settings.enabled;
     
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+        color: tokens.cardFill,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade200),
+        border: Border.all(color: tokens.cardBorder),
       ),
       child: Column(
         children: [
@@ -770,12 +783,12 @@ class _NotificationSettingsScreenState
               'Sound',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : Colors.black87,
+                color: tokens.primaryText,
               ),
             ),
             secondary: Icon(
               LucideIcons.volume2,
-              color: isDark ? Colors.white60 : Colors.black45,
+              color: tokens.secondaryText,
             ),
             value: _settings.soundEnabled,
             onChanged: isEnabled
@@ -784,12 +797,12 @@ class _NotificationSettingsScreenState
                     _updateSettings(_settings.copyWith(soundEnabled: value));
                   }
                 : null,
-            activeColor: const Color(0xFF8B5CF6),
-            activeTrackColor: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+            activeThumbColor: AppColors.purple,
+            activeTrackColor: AppColors.purple.withValues(alpha: 0.3),
           ),
           Divider(
             height: 1,
-            color: isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade200,
+            color: tokens.dividerColor,
             indent: 16,
           ),
           SwitchListTile(
@@ -797,12 +810,12 @@ class _NotificationSettingsScreenState
               'Vibration',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : Colors.black87,
+                color: tokens.primaryText,
               ),
             ),
             secondary: Icon(
               LucideIcons.smartphone,
-              color: isDark ? Colors.white60 : Colors.black45,
+              color: tokens.secondaryText,
             ),
             value: _settings.vibrationEnabled,
             onChanged: isEnabled
@@ -811,8 +824,8 @@ class _NotificationSettingsScreenState
                     _updateSettings(_settings.copyWith(vibrationEnabled: value));
                   }
                 : null,
-            activeColor: const Color(0xFF8B5CF6),
-            activeTrackColor: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+            activeThumbColor: AppColors.purple,
+            activeTrackColor: AppColors.purple.withValues(alpha: 0.3),
           ),
         ],
       ),
@@ -820,6 +833,7 @@ class _NotificationSettingsScreenState
   }
 
   Widget _buildTestButton(bool isDark) {
+    final tokens = Theme.of(context).upHealHome;
     final isEnabled = _settings.enabled;
     
     return GestureDetector(
@@ -829,16 +843,14 @@ class _NotificationSettingsScreenState
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           gradient: isEnabled
-              ? const LinearGradient(
-                  colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
-                )
+              ? tokens.accentGradient
               : null,
-          color: isEnabled ? null : Colors.grey.shade300,
+          color: isEnabled ? null : tokens.trackColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: isEnabled
               ? [
                   BoxShadow(
-                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                    color: AppColors.purple.withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),

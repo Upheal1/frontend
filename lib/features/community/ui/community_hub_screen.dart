@@ -4,9 +4,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+
 import '../../../constants/app_colors.dart';
 import '../../../design_system/tokens/design_tokens.dart';
 import '../../../navigation/app_routes.dart';
+import '../../../shared/theme/upheal_home_theme.dart';
 import '../data/community_models.dart';
 import '../services/community_repository.dart';
 import '../state/community_notifiers.dart';
@@ -117,17 +119,13 @@ class _CommunityHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final t = Theme.of(context).upHealHome;
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F0F1A) : Colors.white,
+        color: t.cardFill,
         border: Border(
-          bottom: BorderSide(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : const Color(0xFFE5E7EB),
-          ),
+          bottom: BorderSide(color: t.dividerColor),
         ),
       ),
       child: SafeArea(
@@ -158,9 +156,7 @@ class _CommunityHeader extends StatelessWidget {
                             style: GoogleFonts.inter(
                               fontSize: responsive.isTabletOrWider ? 28 : 24,
                               fontWeight: FontWeight.w800,
-                              color: isDark
-                                  ? Colors.white
-                                  : const Color(0xFF111827),
+                              color: t.primaryText,
                               letterSpacing: -0.5,
                             ),
                           ),
@@ -168,46 +164,14 @@ class _CommunityHeader extends StatelessWidget {
                             'A safe space for your journey',
                             style: GoogleFonts.inter(
                               fontSize: responsive.isTabletOrWider ? 13 : 13,
-                              color: isDark
-                                  ? Colors.white54
-                                  : const Color(0xFF6B7280),
+                              color: t.secondaryText,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  // + Share button
-                  GestureDetector(
-                    onTap: () {
-                      HapticFeedback.mediumImpact();
-                      FeedTab.openCompose(context);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 9),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF14B8A6),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(LucideIcons.plus,
-                              color: Colors.white, size: 16),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Share',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+
                 ],
               ),
               SizedBox(height: responsive.space(AppSpacing.lg)),
@@ -234,27 +198,23 @@ class _SegmentedTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppResponsiveInfo responsive = context.responsive;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final trackColor = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : const Color(0xFFF0F1F5);
-    final selectedColor = isDark ? const Color(0xFF1E1E2E) : Colors.white;
+    final t = Theme.of(context).upHealHome;
 
     return Container(
       height: 44,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: trackColor,
+        color: t.trackColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: TabBar(
         controller: controller,
         indicator: BoxDecoration(
           borderRadius: BorderRadius.circular(9),
-          color: selectedColor,
+          color: t.navActiveDark.withValues(alpha: 0.25),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
+              color: t.quickGroups.withValues(alpha: 0.15),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -267,9 +227,8 @@ class _SegmentedTabBar extends StatelessWidget {
             GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14),
         unselectedLabelStyle:
             GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 14),
-        labelColor: isDark ? Colors.white : const Color(0xFF111827),
-        unselectedLabelColor:
-            isDark ? Colors.white38 : const Color(0xFF9CA3AF),
+        labelColor: t.primaryText,
+        unselectedLabelColor: t.faintText,
         tabs: const [
           Tab(
             child: Row(
@@ -357,7 +316,7 @@ class _GradientFab extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: CommunityDecor.lavender.withValues(alpha: 0.3),
+                    color: const Color(0xFF8A6CF6).withValues(alpha: 0.35),
                     blurRadius: 14,
                     offset: const Offset(0, 4),
                   ),
@@ -400,15 +359,10 @@ class _CommunityDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF0F0F1A) : Colors.white;
-    final surface = isDark ? const Color(0xFF1A1A2E) : const Color(0xFFFFFFFF);
-    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final textSecondary =
-        isDark ? Colors.white60 : const Color(0xFF475569);
+    final t = Theme.of(context).upHealHome;
 
     return Drawer(
-      backgroundColor: bg,
+      backgroundColor: t.pageBackground,
       width: MediaQuery.of(context).size.width * 0.80,
       child: SafeArea(
         child: Column(
@@ -418,20 +372,9 @@ class _CommunityDrawer extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.purple.withValues(alpha: 0.18),
-                    AppColors.teal.withValues(alpha: 0.08),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: CommunityDecor.headerGradient(context),
                 border: Border(
-                  bottom: BorderSide(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.06)
-                        : AppColors.purple.withValues(alpha: 0.10),
-                  ),
+                  bottom: BorderSide(color: t.dividerColor),
                 ),
               ),
               child: Row(
@@ -440,13 +383,11 @@ class _CommunityDrawer extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.purple, AppColors.teal],
-                      ),
+                      gradient: t.accentGradient,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.purple.withValues(alpha: 0.35),
+                          color: const Color(0xFF8A6CF6).withValues(alpha: 0.35),
                           blurRadius: 14,
                           offset: const Offset(0, 4),
                         ),
@@ -465,7 +406,7 @@ class _CommunityDrawer extends StatelessWidget {
                           style: GoogleFonts.inter(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: textPrimary,
+                            color: t.primaryText,
                             letterSpacing: -0.4,
                           ),
                         ),
@@ -473,7 +414,7 @@ class _CommunityDrawer extends StatelessWidget {
                           'A safe space to share & grow',
                           style: GoogleFonts.inter(
                             fontSize: 12,
-                            color: textSecondary,
+                            color: t.secondaryText,
                           ),
                         ),
                       ],
@@ -481,7 +422,7 @@ class _CommunityDrawer extends StatelessWidget {
                   ),
                   IconButton(
                     icon: Icon(LucideIcons.x,
-                        color: textSecondary, size: 20),
+                        color: t.faintText, size: 20),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -498,13 +439,9 @@ class _CommunityDrawer extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: surface,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.06)
-                            : const Color(0xFFE9EBF0),
-                      ),
+                      color: t.cardFill,
+                      borderRadius: BorderRadius.circular(t.tileRadius),
+                      border: Border.all(color: t.cardBorder),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -512,26 +449,23 @@ class _CommunityDrawer extends StatelessWidget {
                         _StatCell(
                             label: 'Posts',
                             value: '2.4k',
-                            icon: LucideIcons.fileText,
-                            isDark: isDark),
-                        _VerticalDivider(isDark: isDark),
+                            icon: LucideIcons.fileText),
+                        _VerticalDivider(),
                         _StatCell(
                             label: 'Members',
                             value: '1.1k',
-                            icon: LucideIcons.users,
-                            isDark: isDark),
-                        _VerticalDivider(isDark: isDark),
+                            icon: LucideIcons.users),
+                        _VerticalDivider(),
                         _StatCell(
                             label: 'Active',
                             value: '148',
-                            icon: LucideIcons.zap,
-                            isDark: isDark),
+                            icon: LucideIcons.zap),
                       ],
                     ),
                   ).animate().fadeIn(delay: 80.ms, duration: 280.ms),
 
                   const SizedBox(height: 20),
-                  _SectionLabel(text: 'Browse Topics', isDark: isDark),
+                  _SectionLabel(text: 'Browse Topics'),
                   const SizedBox(height: 10),
 
                   // Tag chips
@@ -541,12 +475,11 @@ class _CommunityDrawer extends StatelessWidget {
                     children: kCommunityTagPresets
                         .map((tag) => _TopicChip(
                               tag: tag,
-                              isDark: isDark,
                               onTap: () {
                                 Navigator.of(context).pop();
                                 ScaffoldMessenger.of(context)
                                     .showSnackBar(SnackBar(
-                                  backgroundColor: AppColors.purple,
+                                  backgroundColor: const Color(0xFF8A6CF6),
                                   behavior: SnackBarBehavior.floating,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -566,13 +499,12 @@ class _CommunityDrawer extends StatelessWidget {
                   ).animate().fadeIn(delay: 120.ms, duration: 280.ms),
 
                   const SizedBox(height: 20),
-                  _SectionLabel(text: 'Quick Links', isDark: isDark),
+                  _SectionLabel(text: 'Quick Links'),
                   const SizedBox(height: 8),
 
                   _DrawerTile(
                     icon: LucideIcons.pencil,
                     label: 'Write a Post',
-                    isDark: isDark,
                     onTap: () {
                       Navigator.of(context).pop();
                       FeedTab.openCompose(context);
@@ -582,7 +514,6 @@ class _CommunityDrawer extends StatelessWidget {
                   _DrawerTile(
                     icon: LucideIcons.users,
                     label: 'Create a Group',
-                    isDark: isDark,
                     onTap: () {
                       Navigator.of(context).pop();
                       CommunityGroupsTab.openCreateSheet(context);
@@ -590,35 +521,32 @@ class _CommunityDrawer extends StatelessWidget {
                   ).animate().fadeIn(delay: 170.ms, duration: 250.ms),
 
                   const SizedBox(height: 20),
-                  _SectionLabel(text: 'Community', isDark: isDark),
+                  _SectionLabel(text: 'Community'),
                   const SizedBox(height: 8),
 
                   _DrawerTile(
                     icon: LucideIcons.bookOpen,
                     label: 'Community Guidelines',
-                    isDark: isDark,
                     onTap: () {
                       Navigator.of(context).pop();
-                      _showGuidelinesSheet(context, isDark);
+                      _showGuidelinesSheet(context);
                     },
                   ).animate().fadeIn(delay: 200.ms, duration: 250.ms),
 
                   _DrawerTile(
                     icon: LucideIcons.heart,
                     label: 'Be Kind & Supportive',
-                    isDark: isDark,
                     subtle: true,
                     onTap: () => Navigator.of(context).pop(),
                   ).animate().fadeIn(delay: 220.ms, duration: 250.ms),
 
                   const SizedBox(height: 20),
-                  _SectionLabel(text: 'Navigate', isDark: isDark),
+                  _SectionLabel(text: 'Navigate'),
                   const SizedBox(height: 8),
 
                   ..._appNavItems.map((item) => _DrawerTile(
                         icon: item.$1,
                         label: item.$2,
-                        isDark: isDark,
                         onTap: () {
                           Navigator.of(context).pop();
                           item.$3.go(context);
@@ -637,12 +565,12 @@ class _CommunityDrawer extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(LucideIcons.shieldCheck,
-                      size: 14, color: textSecondary),
+                      size: 14, color: t.faintText),
                   const SizedBox(width: 6),
                   Text(
                     'Safe, moderated space',
                     style: GoogleFonts.inter(
-                        fontSize: 11, color: textSecondary),
+                        fontSize: 11, color: t.faintText),
                   ),
                 ],
               ),
@@ -653,7 +581,8 @@ class _CommunityDrawer extends StatelessWidget {
     );
   }
 
-  void _showGuidelinesSheet(BuildContext context, bool isDark) {
+  void _showGuidelinesSheet(BuildContext context) {
+    final t = Theme.of(context).upHealHome;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -661,8 +590,9 @@ class _CommunityDrawer extends StatelessWidget {
       builder: (_) => Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF13131F) : Colors.white,
+          color: t.cardFill,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: t.cardBorder)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -673,9 +603,7 @@ class _CommunityDrawer extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.white24
-                      : const Color(0xFFDDE1EA),
+                  color: t.dividerColor,
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -686,8 +614,7 @@ class _CommunityDrawer extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                        colors: [AppColors.purple, AppColors.teal]),
+                    gradient: t.accentGradient,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(LucideIcons.bookOpen,
@@ -699,7 +626,7 @@ class _CommunityDrawer extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    color: t.primaryText,
                   ),
                 ),
               ],
@@ -715,11 +642,10 @@ class _CommunityDrawer extends StatelessWidget {
                       width: 28,
                       height: 28,
                       decoration: BoxDecoration(
-                        color: AppColors.purple.withValues(alpha: 0.10),
+                        color: t.quickGroups.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child:
-                          Icon(g.$1, size: 14, color: AppColors.purple),
+                      child: Icon(g.$1, size: 14, color: const Color(0xFF8A6CF6)),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -731,9 +657,7 @@ class _CommunityDrawer extends StatelessWidget {
                             style: GoogleFonts.inter(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
-                              color: isDark
-                                  ? Colors.white
-                                  : const Color(0xFF0F172A),
+                              color: t.primaryText,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -741,9 +665,7 @@ class _CommunityDrawer extends StatelessWidget {
                             g.$3,
                             style: GoogleFonts.inter(
                               fontSize: 12,
-                              color: isDark
-                                  ? Colors.white54
-                                  : const Color(0xFF64748B),
+                              color: t.faintText,
                               height: 1.4,
                             ),
                           ),
@@ -806,34 +728,31 @@ class _CommunityDrawer extends StatelessWidget {
 
 class _StatCell extends StatelessWidget {
   const _StatCell(
-      {required this.label,
-      required this.value,
-      required this.icon,
-      required this.isDark});
+      {required this.label, required this.value, required this.icon});
   final String label;
   final String value;
   final IconData icon;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).upHealHome;
     return Column(
       children: [
-        Icon(icon, size: 16, color: AppColors.purple),
+        Icon(icon, size: 16, color: const Color(0xFF8A6CF6)),
         const SizedBox(height: 4),
         Text(
           value,
           style: GoogleFonts.inter(
             fontWeight: FontWeight.w800,
             fontSize: 15,
-            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            color: t.primaryText,
           ),
         ),
         Text(
           label,
           style: GoogleFonts.inter(
             fontSize: 11,
-            color: isDark ? Colors.white54 : const Color(0xFF64748B),
+            color: t.faintText,
           ),
         ),
       ],
@@ -842,35 +761,33 @@ class _StatCell extends StatelessWidget {
 }
 
 class _VerticalDivider extends StatelessWidget {
-  const _VerticalDivider({required this.isDark});
-  final bool isDark;
+  const _VerticalDivider();
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).upHealHome;
     return Container(
       width: 1,
       height: 36,
-      color: isDark
-          ? Colors.white.withValues(alpha: 0.08)
-          : const Color(0xFFE4E7EE),
+      color: t.dividerColor,
     );
   }
 }
 
 class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.text, required this.isDark});
+  const _SectionLabel({required this.text});
   final String text;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).upHealHome;
     return Text(
       text.toUpperCase(),
       style: GoogleFonts.inter(
         fontSize: 11,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.8,
-        color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+        color: t.faintText,
       ),
     );
   }
@@ -880,44 +797,33 @@ class _DrawerTile extends StatelessWidget {
   const _DrawerTile({
     required this.icon,
     required this.label,
-    required this.isDark,
     required this.onTap,
     this.subtle = false,
   });
   final IconData icon;
   final String label;
-  final bool isDark;
   final VoidCallback onTap;
   final bool subtle;
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).upHealHome;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
-          color: isDark
-              ? Colors.white.withValues(alpha: subtle ? 0.03 : 0.05)
-              : (subtle
-                  ? const Color(0xFFFFFFFF)
-                  : AppColors.purple.withValues(alpha: 0.04)),
+          color: subtle ? t.cardFill.withValues(alpha: 0.5) : t.quickGroups.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : const Color(0xFFECEEF4),
-          ),
+          border: Border.all(color: t.dividerColor),
         ),
         child: Row(
           children: [
             Icon(
               icon,
               size: 18,
-              color: subtle
-                  ? (isDark ? Colors.white38 : const Color(0xFF94A3B8))
-                  : AppColors.purple,
+              color: subtle ? t.faintText : const Color(0xFF8A6CF6),
             ),
             const SizedBox(width: 12),
             Text(
@@ -925,9 +831,7 @@ class _DrawerTile extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: subtle ? FontWeight.w500 : FontWeight.w600,
-                color: subtle
-                    ? (isDark ? Colors.white54 : const Color(0xFF64748B))
-                    : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                color: subtle ? t.faintText : t.primaryText,
               ),
             ),
             const Spacer(),
@@ -935,9 +839,7 @@ class _DrawerTile extends StatelessWidget {
               Icon(
                 LucideIcons.chevronRight,
                 size: 16,
-                color: isDark
-                    ? Colors.white30
-                    : const Color(0xFFBCC3D0),
+                color: t.faintText,
               ),
           ],
         ),
@@ -948,25 +850,23 @@ class _DrawerTile extends StatelessWidget {
 
 class _TopicChip extends StatelessWidget {
   const _TopicChip(
-      {required this.tag, required this.isDark, required this.onTap});
+      {required this.tag, required this.onTap});
   final String tag;
-  final bool isDark;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).upHealHome;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isDark
-              ? AppColors.purple.withValues(alpha: 0.15)
-              : AppColors.purple.withValues(alpha: 0.08),
+          color: t.quickGroups.withValues(alpha: 0.25),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: AppColors.purple.withValues(alpha: 0.22),
+            color: t.quickGroups.withValues(alpha: 0.35),
           ),
         ),
         child: Text(
@@ -974,7 +874,7 @@ class _TopicChip extends StatelessWidget {
           style: GoogleFonts.inter(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.purple,
+            color: const Color(0xFF8A6CF6),
           ),
         ),
       ),

@@ -106,14 +106,7 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
-        FilledButton.icon(
-          // Disabled when the user has no Supabase session (guest mode).
-          onPressed: context.watch<CommunityRepository>().currentUserId != null
-              ? () => FeedTab.openCompose(context)
-              : null,
-          icon: const Icon(Icons.add),
-          label: const Text('Share'),
-        ),
+
       ],
     );
   }

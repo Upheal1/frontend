@@ -14,14 +14,12 @@ class CommunityPostCard extends StatefulWidget {
     required this.post,
     required this.onOpen,
     required this.onLike,
-    required this.onSave,
     required this.onShare,
   });
 
   final CommunityPost post;
   final VoidCallback onOpen;
   final VoidCallback onLike;
-  final VoidCallback onSave;
   final VoidCallback onShare;
 
   static Future<void> sharePost(BuildContext context, CommunityPost post) async {
@@ -175,7 +173,6 @@ class _CommunityPostCardState extends State<CommunityPostCard>
                 post: widget.post,
                 onLike: widget.onLike,
                 onComment: widget.onOpen,
-                onSave: widget.onSave,
                 onShare: widget.onShare,
               ),
             ],
@@ -492,14 +489,12 @@ class _ActionRow extends StatelessWidget {
     required this.post,
     required this.onLike,
     required this.onComment,
-    required this.onSave,
     required this.onShare,
   });
 
   final CommunityPost post;
   final VoidCallback onLike;
   final VoidCallback onComment;
-  final VoidCallback onSave;
   final VoidCallback onShare;
 
   @override
@@ -519,14 +514,6 @@ class _ActionRow extends StatelessWidget {
           icon: LucideIcons.messageCircle,
           label: '${post.commentCount}',
           onTap: onComment,
-        ),
-        const SizedBox(width: 8),
-        _PillAction(
-          icon: LucideIcons.bookmark,
-          label: post.savedByMe ? 'Saved' : 'Save',
-          active: post.savedByMe,
-          activeColor: CommunityDecor.lavender,
-          onTap: onSave,
         ),
         const Spacer(),
         GestureDetector(

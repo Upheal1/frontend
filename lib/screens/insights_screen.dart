@@ -18,6 +18,7 @@ import '../services/ai_insight_generator.dart';
 import '../services/challenge_service.dart';
 import '../services/insights_service.dart';
 import '../services/screen_time_service.dart';
+import '../shared/theme/upheal_home_theme.dart';
 
 enum _InsightsRange {
   week('Week', 'weekly'),
@@ -166,53 +167,59 @@ class _InsightsScreenState extends State<InsightsScreen> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool isDark = theme.brightness == Brightness.dark;
-    final Color background =
-        isDark ? const Color(0xFF11161D) : const Color(0xFFF7F4EE);
+    final UpHealHomeTheme tokens = theme.upHealHome;
     final AppResponsiveInfo responsive = context.responsive;
 
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: background,
-        body: _InsightsLoadingState(isDark: isDark),
+        backgroundColor: Colors.transparent,
+        body: _InsightsLoadingState(isDark: isDark, tokens: tokens),
       );
     }
 
     return Scaffold(
-      backgroundColor: background,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => _loadInsights(forceRefresh: true),
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: responsive.pagePadding,
-            children: <Widget>[
-              _buildHeader(context),
-              SizedBox(height: responsive.space(AppSpacing.xl)),
-              _buildRangeSelector(context),
-              SizedBox(height: responsive.space(AppSpacing.xl)),
-              _buildOverviewGrid(context),
-              SizedBox(height: responsive.space(AppSpacing.xl)),
-              _buildMoodTrendCard(context),
-              SizedBox(height: responsive.space(AppSpacing.lg)),
-              _buildScreenTimeCard(context),
-              SizedBox(height: responsive.space(AppSpacing.lg)),
-              _buildWellnessRadarCard(context),
-              SizedBox(height: responsive.space(AppSpacing.xxl)),
-              Text(
-                'AI INSIGHTS',
-                style: GoogleFonts.inter(
-                  fontSize: responsive.isTabletOrWider ? 14 : 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.75)
-                      : const Color(0xFF6D7387),
-                ),
+      backgroundColor: Colors.transparent,
+      body: DecoratedBox(
+        decoration: BoxDecoration(gradient: tokens.pageGradient),
+        child: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: () => _loadInsights(forceRefresh: true),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                responsive.space(tokens.screenPadding),
+                0,
+                responsive.space(tokens.screenPadding),
+                120,
               ),
-              SizedBox(height: responsive.space(AppSpacing.md)),
-              ..._buildInsightCards(context),
-              SizedBox(height: responsive.space(AppSpacing.xxl)),
-            ],
+              children: <Widget>[
+                SizedBox(height: responsive.space(AppSpacing.lg)),
+                _buildHeader(context),
+                SizedBox(height: responsive.space(AppSpacing.xl)),
+                _buildRangeSelector(context),
+                SizedBox(height: responsive.space(AppSpacing.xl)),
+                _buildOverviewGrid(context),
+                SizedBox(height: responsive.space(AppSpacing.xl)),
+                _buildMoodTrendCard(context),
+                SizedBox(height: responsive.space(AppSpacing.lg)),
+                _buildScreenTimeCard(context),
+                SizedBox(height: responsive.space(AppSpacing.lg)),
+                _buildWellnessRadarCard(context),
+                SizedBox(height: responsive.space(AppSpacing.xxl)),
+                Text(
+                  'AI INSIGHTS',
+                  style: GoogleFonts.inter(
+                    fontSize: responsive.isTabletOrWider ? 14 : 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: tokens.secondaryText,
+                  ),
+                ),
+                SizedBox(height: responsive.space(AppSpacing.md)),
+                ..._buildInsightCards(context),
+                SizedBox(height: responsive.space(AppSpacing.xxl)),
+              ],
+            ),
           ),
         ),
       ),
@@ -220,7 +227,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
     final AppResponsiveInfo responsive = context.responsive;
 
     return Semantics(
@@ -229,23 +236,21 @@ class _InsightsScreenState extends State<InsightsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Your Insights',
+            'Wellness Insights',
             style: GoogleFonts.inter(
               fontSize: responsive.isTabletOrWider ? 34 : 30,
               fontWeight: FontWeight.w800,
               letterSpacing: -1.2,
-              color: isDark ? Colors.white : const Color(0xFF11213C),
+              color: tokens.primaryText,
             ),
           ),
           SizedBox(height: responsive.space(AppSpacing.xxs)),
           Text(
-            'Track your wellness journey',
+            'Understand your habits, focus, mood, and recovery.',
             style: GoogleFonts.inter(
               fontSize: responsive.isTabletOrWider ? 15 : 14,
               fontWeight: FontWeight.w500,
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.68)
-                  : const Color(0xFF9197A8),
+              color: tokens.secondaryText,
             ),
           ),
         ],
@@ -254,21 +259,18 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildRangeSelector(BuildContext context) {
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final AppResponsiveInfo responsive = context.responsive;
 
     return Container(
       padding: EdgeInsets.all(responsive.space(AppSpacing.xxs)),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A2330) : Colors.white,
+        color: isDark
+            ? tokens.cardFill
+            : tokens.cardFill.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(18),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.14 : 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        border: Border.all(color: tokens.cardBorder),
       ),
       child: Row(
         children: _InsightsRange.values.map((range) {
@@ -288,21 +290,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   vertical: responsive.space(AppSpacing.md),
                 ),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? (isDark ? const Color(0xFF293344) : const Color(0xFFF9FBFF))
-                      : Colors.transparent,
+                  gradient: isSelected ? tokens.accentGradient : null,
+                  color: isSelected ? null : Colors.transparent,
                   borderRadius: BorderRadius.circular(15),
-                  boxShadow: isSelected
-                      ? <BoxShadow>[
-                          BoxShadow(
-                            color: Colors.black.withValues(
-                              alpha: isDark ? 0.18 : 0.08,
-                            ),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : const <BoxShadow>[],
                 ),
                 child: Text(
                   range.label,
@@ -311,10 +301,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     fontSize: responsive.isTabletOrWider ? 14 : 13,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     color: isSelected
-                        ? (isDark ? Colors.white : const Color(0xFF1D2B45))
-                        : (isDark
-                            ? Colors.white.withValues(alpha: 0.52)
-                            : const Color(0xFFA3A9B9)),
+                        ? Colors.white
+                        : tokens.secondaryText,
                   ),
                 ),
               ),
@@ -401,9 +389,13 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildMoodTrendCard(BuildContext context) {
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final List<double> moodPoints = _moodTrendValues;
     final double trendDelta = _trendDeltaPercent(moodPoints);
+    final Color lineColor = isDark
+        ? const Color(0xFF8A6CF6)
+        : const Color(0xFF7C5CF5);
 
     return _InsightsSurface(
       child: Column(
@@ -413,8 +405,12 @@ class _InsightsScreenState extends State<InsightsScreen> {
             title: 'Mood Trend',
             subtitle: '7-day overview',
             badgeText: '${trendDelta >= 0 ? '+' : ''}${trendDelta.round()}%',
-            badgeColor: const Color(0xFFE4F6E6),
-            badgeTextColor: const Color(0xFF6EA474),
+            badgeColor: trendDelta >= 0
+                ? const Color(0xFFE4F6E6)
+                : const Color(0xFFFFF1E7),
+            badgeTextColor: trendDelta >= 0
+                ? const Color(0xFF6EA474)
+                : const Color(0xFFE07A5F),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -429,8 +425,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   drawVerticalLine: false,
                   horizontalInterval: 1,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: (isDark ? Colors.white : const Color(0xFFCAD4C9))
-                        .withValues(alpha: 0.35),
+                    color: isDark
+                        ? tokens.cardBorder
+                        : tokens.dividerColor,
                     strokeWidth: 1,
                   ),
                 ),
@@ -446,9 +443,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                         value.toInt().toString(),
                         style: GoogleFonts.inter(
                           fontSize: 10,
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.55)
-                              : const Color(0xFF9CA3B3),
+                          color: tokens.faintText,
                         ),
                       ),
                     ),
@@ -469,9 +464,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                             labels[index],
                             style: GoogleFonts.inter(
                               fontSize: 10,
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.55)
-                                  : const Color(0xFF9CA3B3),
+                              color: tokens.faintText,
                             ),
                           ),
                         );
@@ -484,14 +477,14 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   LineChartBarData(
                     isCurved: true,
                     curveSmoothness: 0.28,
-                    color: const Color(0xFF7A9B78),
+                    color: lineColor,
                     barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: FlDotData(
                       show: true,
                       getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
                         radius: 3.4,
-                        color: const Color(0xFF7A9B78),
+                        color: lineColor,
                         strokeWidth: 0,
                       ),
                     ),
@@ -501,8 +494,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: <Color>[
-                          const Color(0xFF7A9B78).withValues(alpha: 0.16),
-                          const Color(0xFF7A9B78).withValues(alpha: 0.02),
+                          lineColor.withValues(alpha: 0.16),
+                          lineColor.withValues(alpha: 0.02),
                         ],
                       ),
                     ),
@@ -521,10 +514,14 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildScreenTimeCard(BuildContext context) {
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final List<double> barValues = _barTrendValues;
     final double percentChange = _screenTimeChangePercent;
     final double goalProgress = (_averageDailyScreenHours / 5).clamp(0, 1);
+    final Color barColor = isDark
+        ? const Color(0xFF5B7CFA).withValues(alpha: 0.7)
+        : const Color(0xFF5B7CFA);
 
     return _InsightsSurface(
       child: Column(
@@ -536,8 +533,12 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 ? 'Daily hours'
                 : '${_selectedRange.label} overview',
             badgeText: '${percentChange >= 0 ? '+' : ''}${percentChange.round()}%',
-            badgeColor: const Color(0xFFE9F3FF),
-            badgeTextColor: const Color(0xFF76A8F6),
+            badgeColor: percentChange <= 0
+                ? const Color(0xFFE4F6E6)
+                : const Color(0xFFFFF1E7),
+            badgeTextColor: percentChange <= 0
+                ? const Color(0xFF6EA474)
+                : const Color(0xFFE07A5F),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -553,8 +554,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   drawVerticalLine: false,
                   horizontalInterval: 3,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: (isDark ? Colors.white : const Color(0xFFCFD6E3))
-                        .withValues(alpha: 0.3),
+                    color: isDark
+                        ? tokens.cardBorder
+                        : tokens.dividerColor,
                     strokeWidth: 1,
                   ),
                 ),
@@ -571,9 +573,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                         value.toInt().toString(),
                         style: GoogleFonts.inter(
                           fontSize: 10,
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.55)
-                              : const Color(0xFFA1A8B8),
+                          color: tokens.faintText,
                         ),
                       ),
                     ),
@@ -594,9 +594,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                             labels[index],
                             style: GoogleFonts.inter(
                               fontSize: 10,
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.55)
-                                  : const Color(0xFFA1A8B8),
+                              color: tokens.faintText,
                             ),
                           ),
                         );
@@ -616,7 +614,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                           top: Radius.circular(4),
                           bottom: Radius.circular(4),
                         ),
-                        color: const Color(0xFFB9D3EC),
+                        color: barColor,
                       ),
                     ],
                   ),
@@ -633,20 +631,18 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   child: LinearProgressIndicator(
                     minHeight: 4,
                     value: goalProgress,
-                    backgroundColor: const Color(0xFFDFE8F0),
-                    color: const Color(0xFF6FA6D9),
+                    backgroundColor: tokens.trackColor,
+                    color: const Color(0xFF5B7CFA),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Text(
-                'Goal: 5h/day · Today: ${_todayHours.toStringAsFixed(1)}h ${_todayHours <= 5 ? String.fromCharCode(10003) : ''}',
+                'Goal: 5h/day \u2022 Today: ${_todayHours.toStringAsFixed(1)}h${_todayHours <= 5 ? ' \u2713' : ''}',
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.66)
-                      : const Color(0xFF7D86A0),
+                  color: tokens.secondaryText,
                 ),
               ),
             ],
@@ -657,8 +653,15 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildWellnessRadarCard(BuildContext context) {
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final _RadarMetrics radar = _radarMetrics(context);
+    final Color radarFill = isDark
+        ? const Color(0xFF8A6CF6).withValues(alpha: 0.25)
+        : const Color(0xFF8A6CF6).withValues(alpha: 0.18);
+    final Color radarBorder = isDark
+        ? const Color(0xFF8A6CF6).withValues(alpha: 0.5)
+        : const Color(0xFF8A6CF6).withValues(alpha: 0.4);
 
     return _InsightsSurface(
       child: Column(
@@ -667,10 +670,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
           _CardHeader(
             title: 'Wellness Radar',
             subtitle: 'Your skill map this month',
-            trailing: const Icon(
+            trailing: Icon(
               LucideIcons.sparkles,
               size: 16,
-              color: Color(0xFF9387FF),
+              color: tokens.secondaryText,
             ),
           ),
           const SizedBox(height: 16),
@@ -681,8 +684,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 radarTouchData: RadarTouchData(enabled: false),
                 dataSets: <RadarDataSet>[
                   RadarDataSet(
-                    fillColor: const Color(0xFF9BC6F3).withValues(alpha: 0.28),
-                    borderColor: const Color(0xFF86B7EA),
+                    fillColor: radarFill,
+                    borderColor: radarBorder,
                     entryRadius: 2.6,
                     borderWidth: 2,
                     dataEntries: radar.values
@@ -697,21 +700,21 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   color: Colors.transparent,
                 ),
                 tickBorderData: BorderSide(
-                  color: (isDark ? Colors.white : const Color(0xFFDCE6F3))
-                      .withValues(alpha: 0.7),
+                  color: isDark
+                      ? tokens.cardBorder
+                      : tokens.dividerColor,
                   width: 1,
                 ),
                 gridBorderData: BorderSide(
-                  color: (isDark ? Colors.white : const Color(0xFFDCE6F3))
-                      .withValues(alpha: 0.7),
+                  color: isDark
+                      ? tokens.cardBorder
+                      : tokens.dividerColor,
                   width: 1,
                 ),
                 titleTextStyle: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.75)
-                      : const Color(0xFF6B7893),
+                  color: tokens.secondaryText,
                 ),
                 titlePositionPercentageOffset: 0.15,
                 getTitle: (index, angle) => RadarChartTitle(
@@ -727,6 +730,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   List<Widget> _buildInsightCards(BuildContext context) {
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
     final List<Insight> cards = _insights.take(3).toList(growable: false);
     if (cards.isEmpty) {
       return <Widget>[
@@ -736,7 +740,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF6D7387),
+              color: tokens.secondaryText,
             ),
           ),
         ),
@@ -761,28 +765,61 @@ class _InsightsScreenState extends State<InsightsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Container(
-                width: 26,
-                height: 26,
+                width: 32,
+                height: 32,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.68),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   palette.emoji,
-                  style: const TextStyle(fontSize: 14),
+                  style: const TextStyle(fontSize: 16),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  _insightSummaryText(insight),
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    height: 1.4,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF2B3448),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      insight.title,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: tokens.primaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _insightSummaryText(insight),
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                        color: tokens.secondaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: palette.badgeColor,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        palette.badgeLabel,
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: palette.badgeTextColor,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -952,24 +989,36 @@ class _InsightsScreenState extends State<InsightsScreen> {
           background: Color(0xFFEAF5E9),
           border: Color(0xFFC9DFC5),
           emoji: '🌅',
+          badgeColor: Color(0xFFD4EDD4),
+          badgeTextColor: Color(0xFF3D8B47),
+          badgeLabel: 'Positive',
         );
       case InsightCategory.neutral:
         return const _InsightPalette(
           background: Color(0xFFEAF3FF),
           border: Color(0xFFC9DBF4),
           emoji: '📊',
+          badgeColor: Color(0xFFD4E4FF),
+          badgeTextColor: Color(0xFF4A7BCF),
+          badgeLabel: 'Insight',
         );
       case InsightCategory.warning:
         return const _InsightPalette(
           background: Color(0xFFFFF1E7),
           border: Color(0xFFF1D4B9),
           emoji: '🔥',
+          badgeColor: Color(0xFFFFE4D6),
+          badgeTextColor: Color(0xFFD4763A),
+          badgeLabel: 'Notice',
         );
       case InsightCategory.critical:
         return const _InsightPalette(
           background: Color(0xFFFFE9E6),
           border: Color(0xFFF3C4BB),
           emoji: '⚠️',
+          badgeColor: Color(0xFFFFD6D1),
+          badgeTextColor: Color(0xFFC9443A),
+          badgeLabel: 'Attention',
         );
     }
   }
@@ -983,38 +1032,41 @@ class _InsightsScreenState extends State<InsightsScreen> {
 }
 
 class _InsightsLoadingState extends StatelessWidget {
-  const _InsightsLoadingState({required this.isDark});
+  const _InsightsLoadingState({required this.isDark, required this.tokens});
 
   final bool isDark;
+  final UpHealHomeTheme tokens;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Container(
-            width: 84,
-            height: 84,
-            decoration: BoxDecoration(
-              color: (isDark ? Colors.white : const Color(0xFF7A9B78))
-                  .withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: tokens.pageGradient),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                color: tokens.primaryText.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
+            ).animate(onPlay: (controller) => controller.repeat()).shimmer(duration: 1200.ms),
+            const SizedBox(height: 22),
+            Text(
+              'Building your wellness snapshot...',
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: tokens.primaryText,
+              ),
             ),
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 3),
-            ),
-          ).animate(onPlay: (controller) => controller.repeat()).shimmer(duration: 1200.ms),
-          const SizedBox(height: 22),
-          Text(
-            'Building your wellness snapshot...',
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white : const Color(0xFF21304A),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1027,20 +1079,18 @@ class _OverviewMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A2330) : Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.16 : 0.05),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
+        color: isDark ? tokens.cardFill : tokens.cardFill,
+        borderRadius: BorderRadius.circular(tokens.tileRadius),
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow != null
+            ? [tokens.cardShadow!]
+            : <BoxShadow>[],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1060,7 +1110,7 @@ class _OverviewMetricCard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 17,
               fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : const Color(0xFF14233E),
+              color: tokens.primaryText,
             ),
           ),
           const SizedBox(height: 4),
@@ -1068,9 +1118,7 @@ class _OverviewMetricCard extends StatelessWidget {
             data.title,
             style: GoogleFonts.inter(
               fontSize: 12,
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.62)
-                  : const Color(0xFF9096A7),
+              color: tokens.secondaryText,
             ),
           ),
           const SizedBox(height: 2),
@@ -1095,20 +1143,18 @@ class _InsightsSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A2330) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
+        color: isDark ? tokens.cardFill : tokens.cardFill,
+        borderRadius: BorderRadius.circular(tokens.cardRadius),
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow != null
+            ? [tokens.cardShadow!]
+            : <BoxShadow>[],
       ),
       child: child,
     );
@@ -1134,7 +1180,7 @@ class _CardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
 
     return Row(
       children: <Widget>[
@@ -1147,7 +1193,7 @@ class _CardHeader extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF13233C),
+                  color: tokens.primaryText,
                 ),
               ),
               const SizedBox(height: 2),
@@ -1155,9 +1201,7 @@ class _CardHeader extends StatelessWidget {
                 subtitle,
                 style: GoogleFonts.inter(
                   fontSize: 13,
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.58)
-                      : const Color(0xFF9AA2B4),
+                  color: tokens.secondaryText,
                 ),
               ),
             ],
@@ -1218,9 +1262,15 @@ class _InsightPalette {
     required this.background,
     required this.border,
     required this.emoji,
+    required this.badgeColor,
+    required this.badgeTextColor,
+    required this.badgeLabel,
   });
 
   final Color background;
   final Color border;
   final String emoji;
+  final Color badgeColor;
+  final Color badgeTextColor;
+  final String badgeLabel;
 }

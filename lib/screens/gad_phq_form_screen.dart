@@ -16,6 +16,8 @@ import '../services/screen_time_service.dart';
 import '../services/supabase_service.dart';
 import '../services/upheal_api.dart';
 import 'assessment_results_screen.dart';
+import '../shared/theme/upheal_home_theme.dart';
+import '../constants/app_colors.dart';
 
 class GadPhqFormScreen extends StatefulWidget {
   const GadPhqFormScreen({super.key});
@@ -114,40 +116,39 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F9FC);
-    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final text = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF111827);
-    final muted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280);
-    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE5E7EB);
+    final tokens = Theme.of(context).upHealHome;
 
     return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(isDark, text, muted, surface, border),
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                physics: const BouncingScrollPhysics(),
-                onPageChanged: (i) {
-                  setState(() => _currentPage = i);
-                  _progressAnim.forward(from: 0);
-                  _pageEnterController.reset();
-                  _pageEnterController.forward();
-                },
-                itemCount: _total,
-                itemBuilder: (_, i) => _buildQuestionPage(i, isDark, text, muted, surface, border),
+      backgroundColor: Colors.transparent,
+      body: DecoratedBox(
+        decoration: BoxDecoration(gradient: tokens.pageGradient),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(isDark, tokens),
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  physics: const BouncingScrollPhysics(),
+                  onPageChanged: (i) {
+                    setState(() => _currentPage = i);
+                    _progressAnim.forward(from: 0);
+                    _pageEnterController.reset();
+                    _pageEnterController.forward();
+                  },
+                  itemCount: _total,
+                  itemBuilder: (_, i) => _buildQuestionPage(i, isDark, tokens),
+                ),
               ),
-            ),
-            _buildBottomNav(isDark, text, surface, border),
-          ],
+              _buildBottomNav(isDark, tokens),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(bool isDark, Color text, Color muted, Color surface, Color border) {
+  Widget _buildHeader(bool isDark, UpHealHomeTheme tokens) {
     return Container(
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 20),
       child: Column(
@@ -156,23 +157,23 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
             children: [
               IconButton(
                 onPressed: () => safeGoBack(context),
-                icon: Icon(LucideIcons.arrowLeft, color: text, size: 22),
+                icon: Icon(LucideIcons.arrowLeft, color: tokens.primaryText, size: 22),
                 style: IconButton.styleFrom(
-                  backgroundColor: isDark ? Colors.white.withAlpha(15) : Colors.black.withAlpha(10),
+                  backgroundColor: tokens.trackColor,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
               ),
               const Spacer(),
               Text(
                 'Question ${_currentPage + 1} of $_total',
-                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: muted),
+                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: tokens.secondaryText),
               ),
               const Spacer(),
               IconButton(
                 onPressed: () => safeGoBack(context),
-                icon: Icon(LucideIcons.x, color: muted, size: 20),
+                icon: Icon(LucideIcons.x, color: tokens.secondaryText, size: 20),
                 style: IconButton.styleFrom(
-                  backgroundColor: isDark ? Colors.white.withAlpha(15) : Colors.black.withAlpha(10),
+                  backgroundColor: tokens.trackColor,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
               ),
@@ -188,8 +189,8 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
               builder: (_, value, __) => LinearProgressIndicator(
                 value: value,
                 minHeight: 6,
-                backgroundColor: isDark ? Colors.white.withAlpha(20) : Colors.black.withAlpha(12),
-                valueColor: const AlwaysStoppedAnimation(Color(0xFF8B5CF6)),
+                backgroundColor: tokens.trackColor,
+                valueColor: const AlwaysStoppedAnimation(AppColors.purple),
               ),
             ),
           ),
@@ -198,7 +199,7 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
     );
   }
 
-  Widget _buildQuestionPage(int index, bool isDark, Color text, Color muted, Color surface, Color border) {
+  Widget _buildQuestionPage(int index, bool isDark, UpHealHomeTheme tokens) {
     final item = _allQuestions[index];
     final key = '${item.prefix}_q${item.question.id}';
     final selected = _answers[key];
@@ -216,16 +217,10 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
                 width: double.infinity,
                 padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
-                  color: surface,
+                  color: tokens.cardFill,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: border.withAlpha(80), width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isDark ? Colors.black.withAlpha(60) : const Color(0xFF8B5CF6).withAlpha(18),
-                      blurRadius: 30,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                  border: Border.all(color: tokens.cardBorder, width: 1),
+                  boxShadow: tokens.cardShadow != null ? [tokens.cardShadow!] : null,
                 ),
                 child: Column(
                   children: [
@@ -234,8 +229,8 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            const Color(0xFF8B5CF6).withAlpha(30),
-                            const Color(0xFFA78BFA).withAlpha(20),
+                            AppColors.purple.withValues(alpha: 0.12),
+                            AppColors.purple.withValues(alpha: 0.08),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(20),
@@ -245,7 +240,7 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF8B5CF6),
+                          color: AppColors.purple,
                         ),
                       ),
                     ),
@@ -257,13 +252,13 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
                         fontSize: 22,
                         fontWeight: FontWeight.w600,
                         height: 1.4,
-                        color: text,
+                        color: tokens.primaryText,
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'Over the last 2 weeks',
-                      style: GoogleFonts.inter(fontSize: 14, color: muted),
+                      style: GoogleFonts.inter(fontSize: 14, color: tokens.secondaryText),
                     ),
                   ],
                 ),
@@ -279,8 +274,7 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
                     value: opt.value,
                     isSelected: isSelected,
                     isDark: isDark,
-                    text: text,
-                    border: border,
+                    tokens: tokens,
                     onTap: () {
                       HapticFeedback.selectionClick();
                       setState(() => _answers[key] = opt.value);
@@ -305,8 +299,7 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
     required int value,
     required bool isSelected,
     required bool isDark,
-    required Color text,
-    required Color border,
+    required UpHealHomeTheme tokens,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -319,30 +312,24 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF8B5CF6)
-              : (isDark ? const Color(0xFF1E293B) : Colors.white),
+              ? AppColors.purple
+              : tokens.cardFill,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF8B5CF6)
-                : border,
+                ? AppColors.purple
+                : tokens.cardBorder,
             width: isSelected ? 1.5 : 1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF8B5CF6).withAlpha(80),
+                    color: AppColors.purple.withValues(alpha: 0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 6),
                   ),
                 ]
-              : [
-                  BoxShadow(
-                    color: isDark ? Colors.black.withAlpha(30) : Colors.black.withAlpha(8),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+              : null,
         ),
         child: Row(
           children: [
@@ -352,7 +339,7 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected ? Colors.white : text,
+                  color: isSelected ? Colors.white : tokens.primaryText,
                 ),
               ),
             ),
@@ -370,7 +357,7 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
                       color: Colors.white,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(LucideIcons.check, size: 16, color: Color(0xFF8B5CF6)),
+                    child: const Icon(LucideIcons.check, size: 16, color: AppColors.purple),
                   ),
                 ),
               ),
@@ -380,20 +367,13 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
     );
   }
 
-  Widget _buildBottomNav(bool isDark, Color text, Color surface, Color border) {
+  Widget _buildBottomNav(bool isDark, UpHealHomeTheme tokens) {
     final isLast = _currentPage == _total - 1;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            isDark ? const Color(0xFF0F172A).withAlpha(0) : const Color(0xFFF8F9FC).withAlpha(0),
-            isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F9FC),
-          ],
-        ),
+        color: tokens.pageBackground,
       ),
       child: SafeArea(
         top: false,
@@ -407,8 +387,8 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
                   icon: const Icon(LucideIcons.arrowLeft, size: 18),
                   label: const Text('Previous'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: text,
-                    side: BorderSide(color: border),
+                    foregroundColor: tokens.primaryText,
+                    side: BorderSide(color: tokens.cardBorder),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                   ),
@@ -435,10 +415,10 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
                     ],
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8B5CF6),
+                    backgroundColor: AppColors.purple,
                     foregroundColor: Colors.white,
                     elevation: 4,
-                    shadowColor: const Color(0xFF8B5CF6).withAlpha(80),
+                    shadowColor: AppColors.purple.withValues(alpha: 0.3),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                   ),
@@ -461,12 +441,12 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
                     style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8B5CF6),
+                    backgroundColor: AppColors.purple,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFD1D5DB),
-                    disabledForegroundColor: isDark ? const Color(0xFF64748B) : const Color(0xFF9CA3AF),
+                    disabledBackgroundColor: tokens.trackColor,
+                    disabledForegroundColor: tokens.faintText,
                     elevation: 4,
-                    shadowColor: const Color(0xFF8B5CF6).withAlpha(80),
+                    shadowColor: AppColors.purple.withValues(alpha: 0.3),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                   ),

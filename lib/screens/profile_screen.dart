@@ -17,6 +17,7 @@ import '../models/streak_model.dart';
 import '../models/user_model.dart';
 import '../navigation/app_routes.dart';
 import '../services/challenge_service.dart';
+import '../shared/theme/upheal_home_theme.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -24,7 +25,7 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final tokens = theme.upHealHome;
     final authModel = context.watch<AuthModel>();
     final userModel = context.watch<UserModel>();
     final avatarProvider = context.watch<AvatarProvider>();
@@ -72,21 +73,12 @@ class ProfileScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF141824) : const Color(0xFFF4F1E8),
+      backgroundColor: Colors.transparent,
       body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? const [Color(0xFF1A2030), Color(0xFF111522)]
-                : const [Color(0xFFF6F4EC), Color(0xFFEAEFE8)],
-          ),
-        ),
+        decoration: BoxDecoration(gradient: tokens.pageGradient),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 120),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -258,25 +250,24 @@ class _ProfileHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isDark
-              ? const [Color(0xFF263146), Color(0xFF1D2537)]
-              : const [Color(0xFFC8DBF0), Color(0xFFE6ECEF)],
+          colors: <Color>[
+            const Color(0xFF7C5CF5),
+            const Color(0xFF6A4BE8),
+            const Color(0xFF8A6CF6),
+          ],
         ),
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.26 : 0.08),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
+            color: const Color(0xFF6A4BE8).withValues(alpha: 0.35),
+            blurRadius: 32,
+            offset: const Offset(0, 16),
           ),
         ],
       ),
@@ -299,7 +290,7 @@ class _ProfileHeroCard extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
-                    color: theme.colorScheme.onSurface,
+                    color: Colors.white,
                     letterSpacing: -0.8,
                   ),
                 ),
@@ -315,7 +306,7 @@ class _ProfileHeroCard extends StatelessWidget {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE0B659),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
@@ -323,7 +314,7 @@ class _ProfileHeroCard extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFFFCFCFA),
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -332,7 +323,7 @@ class _ProfileHeroCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
                   ],
@@ -346,7 +337,7 @@ class _ProfileHeroCard extends StatelessWidget {
                     fontSize: 12,
                     height: 1.35,
                     fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: Colors.white.withValues(alpha: 0.75),
                   ),
                 ),
               ],
@@ -354,16 +345,14 @@ class _ProfileHeroCard extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Material(
-            color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.white,
+            color: Colors.white.withValues(alpha: 0.2),
             shape: const CircleBorder(),
-            elevation: isDark ? 0 : 4,
-            shadowColor: Colors.black.withValues(alpha: 0.12),
             child: IconButton(
               onPressed: onOpenSettings,
-              icon: Icon(
+              icon: const Icon(
                 LucideIcons.settings2,
                 size: 19,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+                color: Colors.white,
               ),
               tooltip: 'Open settings',
             ),
@@ -395,11 +384,7 @@ class _AvatarTile extends StatelessWidget {
           height: 64,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF70A9DE), Color(0xFF5B90CA)],
-            ),
+            gradient: UpHealHomeTheme.sharedAccentGradient,
           ),
           alignment: Alignment.center,
           child: AvatarWidget(
@@ -457,8 +442,7 @@ class _XpProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
 
     return _SoftSurface(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -472,7 +456,7 @@ class _XpProgressCard extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurface,
+                  color: tokens.primaryText,
                   letterSpacing: -0.7,
                 ),
               ),
@@ -482,7 +466,7 @@ class _XpProgressCard extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                  color: tokens.faintText,
                 ),
               ),
             ],
@@ -493,11 +477,8 @@ class _XpProgressCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress.clamp(0.0, 1.0),
               minHeight: 6,
-              backgroundColor: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : const Color(0xFFE6EAF0),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(Color(0xFFDEB65E)),
+              backgroundColor: tokens.trackColor,
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8A6CF6)),
             ),
           ),
         ],
@@ -543,7 +524,7 @@ class _SummaryTileState extends State<_SummaryTile> {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: Theme.of(context).upHealHome.primaryText,
               letterSpacing: -0.5,
             ),
           ),
@@ -555,10 +536,7 @@ class _SummaryTileState extends State<_SummaryTile> {
             style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.55),
+              color: Theme.of(context).upHealHome.secondaryText,
             ),
           ),
         ],
@@ -616,14 +594,15 @@ class _SegmentedProfileActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1B2130) : const Color(0xFFEDEBE4),
-        borderRadius: BorderRadius.circular(18),
+        color: isDark ? tokens.cardFill : tokens.cardFill.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(tokens.tileRadius),
+        border: Border.all(color: tokens.cardBorder),
       ),
       child: Row(
         children: [
@@ -671,23 +650,15 @@ class _SegmentChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
     final child = AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: isSelected ? theme.colorScheme.surface : Colors.transparent,
+        gradient: isSelected ? tokens.accentGradient : null,
+        color: isSelected ? null : Colors.transparent,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : null,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -696,8 +667,8 @@ class _SegmentChip extends StatelessWidget {
             icon,
             size: 13,
             color: isSelected
-                ? theme.colorScheme.onSurface
-                : theme.colorScheme.onSurface.withValues(alpha: 0.48),
+                ? Colors.white
+                : tokens.secondaryText,
           ),
           const SizedBox(width: 6),
           Text(
@@ -706,8 +677,8 @@ class _SegmentChip extends StatelessWidget {
               fontSize: 12,
               fontWeight: FontWeight.w700,
               color: isSelected
-                  ? theme.colorScheme.onSurface
-                  : theme.colorScheme.onSurface.withValues(alpha: 0.48),
+                  ? Colors.white
+                  : tokens.secondaryText,
             ),
           ),
         ],
@@ -736,7 +707,7 @@ class _ProgressSnapshotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
 
     return _SoftSurface(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
@@ -752,7 +723,7 @@ class _ProgressSnapshotCard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.48),
+              color: tokens.faintText,
             ),
           ),
         ],
@@ -768,7 +739,7 @@ class _ProgressSnapshotRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
     final progress =
         item.goal <= 0 ? 0.0 : (item.current / item.goal).clamp(0.0, 1.0);
 
@@ -783,7 +754,7 @@ class _ProgressSnapshotRow extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.74),
+                  color: tokens.secondaryText,
                 ),
               ),
             ),
@@ -792,7 +763,7 @@ class _ProgressSnapshotRow extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
-                color: theme.colorScheme.onSurface,
+                color: tokens.primaryText,
               ),
             ),
           ],
@@ -803,9 +774,7 @@ class _ProgressSnapshotRow extends StatelessWidget {
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 5,
-            backgroundColor: theme.brightness == Brightness.dark
-                ? Colors.white.withValues(alpha: 0.08)
-                : const Color(0xFFE4E8EE),
+            backgroundColor: tokens.trackColor,
             valueColor: AlwaysStoppedAnimation<Color>(item.color),
           ),
         ),
@@ -831,12 +800,12 @@ class _QuickAccessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(tokens.tileRadius),
         onTap: onTap,
         child: _SoftSurface(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -862,7 +831,7 @@ class _QuickAccessCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
-                        color: theme.colorScheme.onSurface,
+                        color: tokens.primaryText,
                         letterSpacing: -0.3,
                       ),
                     ),
@@ -872,7 +841,7 @@ class _QuickAccessCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.52),
+                        color: tokens.secondaryText,
                       ),
                     ),
                   ],
@@ -881,7 +850,7 @@ class _QuickAccessCard extends StatelessWidget {
               Icon(
                 LucideIcons.chevronRight,
                 size: 18,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                color: tokens.faintText,
               ),
             ],
           ),
@@ -898,20 +867,35 @@ class _LogoutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onLogout,
-      icon: const Icon(LucideIcons.logOut, size: 18, color: Colors.red),
-      label: Text(
-        'Log out',
-        style: GoogleFonts.inter(
-          fontWeight: FontWeight.w700,
-          color: Colors.red,
-        ),
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(tokens.tileRadius),
+        border: Border.all(color: tokens.cardBorder),
       ),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: OutlinedButton.icon(
+        onPressed: onLogout,
+        icon: Icon(
+          LucideIcons.logOut,
+          size: 18,
+          color: tokens.faintText,
+        ),
+        label: Text(
+          'Log out',
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.w700,
+            color: tokens.faintText,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          side: BorderSide.none,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.tileRadius),
+          ),
+          backgroundColor: Colors.transparent,
+        ),
       ),
     );
   }
@@ -928,28 +912,17 @@ class _SoftSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
 
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF1A2030)
-            : Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.05)
-              : const Color(0xFFF0EEE7),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.06),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
-          ),
-        ],
+        color: tokens.cardFill,
+        borderRadius: BorderRadius.circular(tokens.cardRadius),
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow != null
+            ? [tokens.cardShadow!]
+            : <BoxShadow>[],
       ),
       child: child,
     );

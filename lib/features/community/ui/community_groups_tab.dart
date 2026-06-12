@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../../models/user_model.dart';
+import '../../../shared/theme/upheal_home_theme.dart';
 import '../data/community_models.dart';
 import '../services/community_repository.dart';
 import '../state/community_notifiers.dart';
@@ -29,38 +30,33 @@ class CommunityGroupsTab extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) {
+          builder: (ctx) {
         final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+        final t = Theme.of(ctx).upHealHome;
         return Padding(
           padding: EdgeInsets.only(bottom: bottomInset),
           child: StatefulBuilder(
             builder: (ctx, setModal) {
-              final isDark = Theme.of(ctx).brightness == Brightness.dark;
               return Container(
                 margin: const EdgeInsets.all(12),
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E2235) : Colors.white,
-                  borderRadius: BorderRadius.circular(28),
-                  border: isDark
-                      ? Border.all(color: Colors.white.withOpacity(0.07))
-                      : null,
+                  color: t.cardFill,
+                  borderRadius: BorderRadius.circular(t.cardRadius),
+                  border: Border.all(color: t.cardBorder),
                 ),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Handle pill
                       Center(
                         child: Container(
                           width: 36,
                           height: 4,
                           margin: const EdgeInsets.only(bottom: 20),
                           decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.white24
-                                : const Color(0xFFD1D5DB),
+                            color: t.dividerColor,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -69,16 +65,14 @@ class CommunityGroupsTab extends StatelessWidget {
                         'Create a space',
                         style: GoogleFonts.inter(
                             fontSize: 20, fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF111827)),
+                            color: t.primaryText),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Build a circle for accountability, focus, or growth.',
                         style: GoogleFonts.inter(
                             fontSize: 13,
-                            color: isDark
-                                ? Colors.white54
-                                : const Color(0xFF6B7280)),
+                            color: t.secondaryText),
                       ),
                       const SizedBox(height: 20),
                       _StyledTextField(
@@ -94,7 +88,7 @@ class CommunityGroupsTab extends StatelessWidget {
                       Text('Type',
                           style: GoogleFonts.inter(
                               fontWeight: FontWeight.w600, fontSize: 14,
-                              color: isDark ? Colors.white : const Color(0xFF374151))),
+                              color: t.primaryText)),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
@@ -106,46 +100,34 @@ class CommunityGroupsTab extends StatelessWidget {
                           CommunityGroupType.coding,
                           CommunityGroupType.recovery,
                           CommunityGroupType.general,
-                        ].map((t) {
-                          final selected = type == t;
+                        ].map((gt) {
+                          final selected = type == gt;
                           return GestureDetector(
-                            onTap: () => setModal(() => type = t),
+                            onTap: () => setModal(() => type = gt),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 14, vertical: 8),
                               decoration: BoxDecoration(
                                 gradient: selected
-                                    ? const LinearGradient(
-                                        colors: [
-                                          Color(0xFF7C6EE6),
-                                          Color(0xFF4ECDC4)
-                                        ],
-                                      )
+                                    ? t.accentGradient
                                     : null,
                                 color: selected
                                     ? null
-                                    : isDark
-                                        ? Colors.white.withOpacity(0.07)
-                                        : const Color(0xFFF4F5F7),
+                                    : t.cardFill,
                                 borderRadius: BorderRadius.circular(99),
                                 border: selected
                                     ? null
-                                    : Border.all(
-                                        color: isDark
-                                            ? Colors.white12
-                                            : const Color(0xFFD1D5DB)),
+                                    : Border.all(color: t.cardBorder),
                               ),
                               child: Text(
-                                t.label,
+                                gt.label,
                                 style: GoogleFonts.inter(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: selected
                                       ? Colors.white
-                                      : isDark
-                                          ? Colors.white70
-                                          : const Color(0xFF374151),
+                                      : t.primaryText,
                                 ),
                               ),
                             ),
@@ -174,7 +156,7 @@ class CommunityGroupsTab extends StatelessWidget {
                                   content: Text('Group created',
                                       style: GoogleFonts.inter()),
                                   behavior: SnackBarBehavior.floating,
-                                  backgroundColor: const Color(0xFF7C6EE6),
+                                  backgroundColor: const Color(0xFF8A6CF6),
                                 ),
                               );
                             }
@@ -190,14 +172,11 @@ class CommunityGroupsTab extends StatelessWidget {
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 15),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF7C6EE6), Color(0xFF4ECDC4)],
-                            ),
+                            gradient: t.accentGradient,
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color:
-                                    const Color(0xFF7C6EE6).withOpacity(0.35),
+                                color: const Color(0xFF8A6CF6).withOpacity(0.35),
                                 blurRadius: 16,
                                 offset: const Offset(0, 4),
                               ),
@@ -354,8 +333,7 @@ class _GroupCardState extends State<_GroupCard>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final scheme = Theme.of(context).colorScheme;
+    final t = Theme.of(context).upHealHome;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -389,11 +367,7 @@ class _GroupCardState extends State<_GroupCard>
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Container(
                                 decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [Color(0xFF7C6EE6), Color(0xFF4ECDC4)],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
+                                  gradient: t.accentGradient,
                                 ),
                               ),
                             ),
@@ -425,9 +399,7 @@ class _GroupCardState extends State<_GroupCard>
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
-                          color: isDark
-                              ? Colors.white
-                              : const Color(0xFF111827),
+                          color: t.primaryText,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -435,8 +407,7 @@ class _GroupCardState extends State<_GroupCard>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color:
-                              const Color(0xFF7C6EE6).withOpacity(0.10),
+                          color: t.quickGroups.withValues(alpha: 0.20),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
@@ -444,7 +415,7 @@ class _GroupCardState extends State<_GroupCard>
                           style: GoogleFonts.inter(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: const Color(0xFF7C6EE6),
+                            color: const Color(0xFF8A6CF6),
                           ),
                         ),
                       ),
@@ -457,7 +428,7 @@ class _GroupCardState extends State<_GroupCard>
                           style: GoogleFonts.inter(
                             fontSize: 13,
                             height: 1.4,
-                            color: scheme.onSurface.withOpacity(0.65),
+                            color: t.faintText,
                           ),
                         ),
                       ],
@@ -468,7 +439,7 @@ class _GroupCardState extends State<_GroupCard>
                 Icon(
                   LucideIcons.chevronRight,
                   size: 18,
-                  color: scheme.onSurface.withOpacity(0.35),
+                  color: t.faintText,
                 ),
               ],
             ),
@@ -496,7 +467,7 @@ class _EmptyGroupsState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final t = Theme.of(context).upHealHome;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(36),
@@ -509,8 +480,8 @@ class _EmptyGroupsState extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    const Color(0xFF7C6EE6).withOpacity(0.14),
-                    const Color(0xFF4ECDC4).withOpacity(0.10),
+                    t.quickGroups.withValues(alpha: 0.30),
+                    t.quickGroups.withValues(alpha: 0.15),
                   ],
                 ),
                 shape: BoxShape.circle,
@@ -525,7 +496,7 @@ class _EmptyGroupsState extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : const Color(0xFF111827),
+                color: t.primaryText,
               ),
             ),
             const SizedBox(height: 8),
@@ -535,7 +506,7 @@ class _EmptyGroupsState extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 height: 1.6,
-                color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+                color: t.secondaryText,
               ),
             ),
           ],
@@ -562,41 +533,35 @@ class _StyledTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final t = Theme.of(context).upHealHome;
     return TextField(
       controller: controller,
       minLines: minLines,
       maxLines: maxLines,
       style: GoogleFonts.inter(
         fontSize: 15,
-        color: isDark ? Colors.white : const Color(0xFF111827),
+        color: t.primaryText,
       ),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: GoogleFonts.inter(
-          color: isDark ? Colors.white54 : const Color(0xFF9CA3AF),
+          color: t.faintText,
           fontSize: 14,
         ),
         filled: true,
-        fillColor: isDark
-            ? Colors.white.withOpacity(0.06)
-            : const Color(0xFFF9FAFB),
+        fillColor: t.trackColor,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
-          ),
+          borderSide: BorderSide(color: t.cardBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
-          ),
+          borderSide: BorderSide(color: t.cardBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(
-            color: Color(0xFF7C6EE6),
+            color: Color(0xFF8A6CF6),
             width: 1.5,
           ),
         ),

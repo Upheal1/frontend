@@ -129,7 +129,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       post: widget.initialPost,
                       onOpen: () {},
                       onLike: () => repo.toggleLike(widget.initialPost.id),
-                      onSave: () => repo.toggleSave(widget.initialPost.id),
                       onShare: () => CommunityPostCard.sharePost(context, widget.initialPost),
                     ),
                     const SizedBox(height: 20),

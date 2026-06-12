@@ -500,14 +500,7 @@ class _FeedPostCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(
-                  LucideIcons.bookmark,
-                  size: 18,
-                  color: isDark
-                      ? Colors.white38
-                      : const Color(0xFFD1D5DB),
-                ),
+
               ],
             ),
             // ── Body ───────────────────────────────────────────────────────
@@ -617,34 +610,6 @@ class _FeedPostCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
-                const Spacer(),
-                // Encourage button
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF14B8A6).withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                        color:
-                            const Color(0xFF14B8A6).withValues(alpha: 0.22)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Encourage',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF0D9488),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Text('🍯', style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
                 ),
               ],
             ),
