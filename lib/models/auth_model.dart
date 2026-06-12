@@ -3,7 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-import '../features/community/services/community_supabase.dart';
+import '../config.dart';
 
 class AuthModel extends ChangeNotifier {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -20,17 +20,42 @@ class AuthModel extends ChangeNotifier {
   String? get userName => _userName;
   String? get errorMessage => _errorMessage;
 
-  SupabaseClient? get _client => CommunitySupabase.clientOrNull;
-
   AuthModel() {
-    _initializeAuth();
+    _tryRestoreSession();
   }
 
-  void _initializeAuth() {
+  /// Returns [Supabase.instance.client] if already initialized, else null.
+  SupabaseClient? get _client {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Ensures Supabase is initialized (lazily from [config.dart] if needed).
+  /// Returns the client on success, or null if configuration is missing.
+  Future<SupabaseClient?> _ensureClient() async {
+    final existing = _client;
+    if (existing != null) return existing;
+    try {
+      await Supabase.initialize(
+        url: SUPABASE_URL,
+        anonKey: SUPABASE_ANON_KEY,
+        debug: kDebugMode,
+      );
+      if (kDebugMode) debugPrint('[Auth] Supabase initialized from config.dart');
+      return Supabase.instance.client;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Auth] Failed to init Supabase: $e');
+      return null;
+    }
+  }
+
+  void _tryRestoreSession() {
     final client = _client;
     if (client == null) return;
 
-    // Restore session immediately if one already exists
     final existingSession = client.auth.currentSession;
     if (existingSession != null) {
       _isAuthenticated = true;
@@ -39,7 +64,6 @@ class AuthModel extends ChangeNotifier {
           existingSession.user.userMetadata?['name'] as String?;
     }
 
-    // Keep in sync with Supabase auth state changes
     client.auth.onAuthStateChange.listen((data) {
       final session = data.session;
       if (session != null) {
@@ -68,7 +92,7 @@ class AuthModel extends ChangeNotifier {
   }
 
   Future<bool> signUp(String email, String password, String name) async {
-    final client = _client;
+    final client = await _ensureClient();
     if (client == null) {
       _errorMessage = 'Auth service not configured';
       notifyListeners();
@@ -84,7 +108,6 @@ class AuthModel extends ChangeNotifier {
         _userEmail = email;
         _userName = name;
         _errorMessage = null;
-        // If session is available (email confirmation disabled), log in immediately
         if (res.session != null) {
           _isAuthenticated = true;
         }
@@ -108,14 +131,13 @@ class AuthModel extends ChangeNotifier {
   }
 
   Future<bool?> login(String email, String password) async {
-    final client = _client;
+    final client = await _ensureClient();
     if (client == null) {
       _errorMessage = 'Auth service not configured';
       notifyListeners();
       return false;
     }
     try {
-      // Check account lock
       final storedLock = await _storage.read(key: 'lock_$email');
       if (storedLock != null) {
         final lockDate = DateTime.tryParse(storedLock);
@@ -165,14 +187,16 @@ class AuthModel extends ChangeNotifier {
   }
 
   Future<bool> signInWithGoogle() async {
-    final client = _client;
+    final client = await _ensureClient();
     if (client == null) {
       _errorMessage = 'Auth service not configured';
       notifyListeners();
       return false;
     }
     try {
-      await GoogleSignIn.instance.initialize();
+      await GoogleSignIn.instance.initialize(
+        serverClientId: googleWebClientId,
+      );
       final googleUser = await GoogleSignIn.instance.authenticate();
       final googleAuth = googleUser.authentication;
       if (googleAuth.idToken == null) {
@@ -237,8 +261,10 @@ class AuthModel extends ChangeNotifier {
   }
 
   Future<bool> sendPasswordResetEmail(String email) async {
+    final client = await _ensureClient();
+    if (client == null) return false;
     try {
-      await _client?.auth.resetPasswordForEmail(email);
+      await client.auth.resetPasswordForEmail(email);
       return true;
     } catch (e) {
       if (kDebugMode) debugPrint('Password reset error: $e');

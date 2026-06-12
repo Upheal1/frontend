@@ -26,3 +26,9 @@ const String API_BASE_URL = String.fromEnvironment(
         defaultValue: 'https://upheal-rag.onrender.com'
 );
 
+// Google OAuth Web Client ID (used as serverClientId for google_sign_in)
+// Generate from Google Cloud Console → Credentials → Web Client ID.
+// Never store the Client Secret in Flutter code.
+const String googleWebClientId =
+    '44271976212-nj77h4ulis531dtmdibka4orgetpauu7.apps.googleusercontent.com';
+
