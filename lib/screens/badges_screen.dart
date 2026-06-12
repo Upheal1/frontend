@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
 import '../models/badge_model.dart';
+import '../navigation/navigation_helpers.dart';
 import '../services/badge_provider.dart';
 
 class BadgesScreen extends StatelessWidget {
@@ -27,7 +28,7 @@ class BadgesScreen extends StatelessWidget {
             LucideIcons.arrowLeft,
             color: isDark ? Colors.white : AppColors.textPrimary,
           ),
-          onPressed: () => Navigator.of(context).maybePop(),
+          onPressed: () => safeGoBack(context),
         ),
         title: Text(
           'Badges',

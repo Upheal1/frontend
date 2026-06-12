@@ -14,6 +14,7 @@ class OnboardingPageData {
   final List<Color> gradientColors;
   final IconData icon;
   final String heroTag;
+  final String travelerImage;
 
   const OnboardingPageData({
     required this.type,
@@ -22,6 +23,7 @@ class OnboardingPageData {
     required this.gradientColors,
     required this.icon,
     required this.heroTag,
+    required this.travelerImage,
   });
 
   static List<OnboardingPageData> get pages => [
@@ -37,6 +39,7 @@ class OnboardingPageData {
           ],
           icon: Icons.landscape_rounded,
           heroTag: 'welcome_hero',
+          travelerImage: 'assets/onboarding/traveler_wave.png',
         ),
         OnboardingPageData(
           type: OnboardingPageType.focus,
@@ -50,6 +53,7 @@ class OnboardingPageData {
           ],
           icon: Icons.do_not_disturb_on_rounded,
           heroTag: 'focus_hero',
+          travelerImage: 'assets/onboarding/traveler_point.png',
         ),
         OnboardingPageData(
           type: OnboardingPageType.gamification,
@@ -63,6 +67,7 @@ class OnboardingPageData {
           ],
           icon: Icons.emoji_events_rounded,
           heroTag: 'gamification_hero',
+          travelerImage: 'assets/onboarding/traveler_celebrate.png',
         ),
         OnboardingPageData(
           type: OnboardingPageType.aiAssistant,
@@ -76,6 +81,7 @@ class OnboardingPageData {
           ],
           icon: Icons.psychology_rounded,
           heroTag: 'ai_hero',
+          travelerImage: 'assets/onboarding/traveler_point.png',
         ),
       ];
 }

@@ -31,6 +31,7 @@ import '../screens/my_assessment_screen.dart';
 import '../screens/notification_settings_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/roadmap_screen.dart';
+import '../screens/roadmap2_screen.dart';
 import '../screens/sleep_tracker_screen.dart';
 import '../screens/streak_screen.dart';
 import '../screens/insights_screen.dart';
@@ -46,6 +47,7 @@ import 'app_shell_scaffold.dart';
 import '../shared/navigation/placeholder_detail_screen.dart';
 import '../screens/avatar_test_screen.dart';
 import '../screens/login_screen.dart';
+import '../screens/forgot_password_screen.dart';
 
 class AppRouter {
   AppRouter();
@@ -100,6 +102,15 @@ class AppRouter {
             AppRouteTransitions.buildPage<void>(
           state: state,
           child: const SignUpScreen(),
+        ),
+      ),
+      GoRoute(
+        path: ForgotPasswordRoute.path,
+        name: ForgotPasswordRoute.name,
+        pageBuilder: (BuildContext context, GoRouterState state) =>
+            AppRouteTransitions.buildPage<void>(
+          state: state,
+          child: const ForgotPasswordScreen(),
         ),
       ),
       GoRoute(
@@ -312,6 +323,15 @@ class AppRouter {
                     AppRouteTransitions.buildPage<void>(
                   state: state,
                   child: const FocusSessionScreen(),
+                ),
+              ),
+              GoRoute(
+                path: Roadmap2Route.path,
+                name: Roadmap2Route.name,
+                pageBuilder: (BuildContext context, GoRouterState state) =>
+                    AppRouteTransitions.buildPage<void>(
+                  state: state,
+                  child: const Roadmap2Screen(),
                 ),
               ),
               GoRoute(

@@ -6,10 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import 'gad_phq_form_screen.dart';
 import 'assessment_results_screen.dart';
 import '../widgets/drawer_menu_button.dart';
 import '../constants/app_colors.dart';
+import '../navigation/app_routes.dart';
+import '../navigation/navigation_helpers.dart';
 import '../features/community/services/community_supabase.dart';
 
 /// Screen to view past assessment results or start a new assessment
@@ -112,7 +113,7 @@ class _MyAssessmentScreenState extends State<MyAssessmentScreen>
                   )
                 : IconButton(
                     icon: const Icon(LucideIcons.arrowLeft),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => safeGoBack(context),
                   ),
         title: Text(
           'My Results',
@@ -728,11 +729,7 @@ class _MyAssessmentScreenState extends State<MyAssessmentScreen>
 
   void _navigateToAssessment() {
     HapticFeedback.mediumImpact();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const GadPhqFormScreen(),
-      ),
-    );
+    const GadPhqRoute().push(context);
   }
 }
 

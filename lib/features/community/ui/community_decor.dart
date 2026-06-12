@@ -2,9 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../../../constants/app_colors.dart';
 
-/// Shared calm / premium visuals for the UpHeal community surfaces.
+  /// Shared calm / premium visuals for the UpHeal community surfaces.
 class CommunityDecor {
   CommunityDecor._();
+
+  // ── Demo avatars / covers ──────────────────────────────────────────────────
+  /// Returns a stable (per [key]) Pravatar URL (real human photos).
+  static String avatarFor(String key) =>
+      'https://i.pravatar.cc/150?u=$key';
+
+  /// Returns a stable (per [key]) Picsum placeholder URL.
+  static String groupCoverFor(String key) =>
+      'https://picsum.photos/seed/$key/320/120';
 
   // ── Brand palette (from AppColors) ───────────────────────────────────────────
   static const Color lavender = AppColors.purple;

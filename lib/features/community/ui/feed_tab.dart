@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/user_model.dart';
 import '../services/community_repository.dart';
+import 'community_decor.dart';
 import 'compose_post_screen.dart';
 
 class FeedTab extends StatefulWidget {
@@ -687,31 +688,15 @@ class _SmallAvatar extends StatelessWidget {
             ? Image.network(
                 avatarUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _AvatarFallback(name: name),
+                errorBuilder: (_, __, ___) => Image.network(
+                  CommunityDecor.avatarFor(name),
+                  fit: BoxFit.cover,
+                ),
               )
-            : _AvatarFallback(name: name),
-      ),
-    );
-  }
-}
-
-class _AvatarFallback extends StatelessWidget {
-  const _AvatarFallback({required this.name});
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.purple.withValues(alpha: 0.13),
-      child: Center(
-        child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : '?',
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.w800,
-            fontSize: 16,
-            color: AppColors.purple,
-          ),
-        ),
+            : Image.network(
+                CommunityDecor.avatarFor(name),
+                fit: BoxFit.cover,
+              ),
       ),
     );
   }

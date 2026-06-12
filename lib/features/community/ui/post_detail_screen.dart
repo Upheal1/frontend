@@ -70,10 +70,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               children: [
                 CircleAvatar(
                   radius: 14,
-                  backgroundColor: scheme.primary.withOpacity(0.2),
-                  child: Text(
-                    c.author.displayName.characters.first.toUpperCase(),
-                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold),
+                  backgroundImage: NetworkImage(
+                    CommunityDecor.avatarFor(c.author.displayName),
                   ),
                 ),
                 const SizedBox(width: 8),

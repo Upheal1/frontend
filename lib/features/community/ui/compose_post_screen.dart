@@ -199,20 +199,9 @@ class _ComposePostScreenState extends State<ComposePostScreen> {
                           ),
                           padding: const EdgeInsets.all(2),
                           child: ClipOval(
-                            child: Container(
-                              color: CommunityDecor.lavender.withOpacity(0.13),
-                              child: Center(
-                                child: Text(
-                                  user.username.isNotEmpty
-                                      ? user.username[0].toUpperCase()
-                                      : '?',
-                                  style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 16,
-                                    color: CommunityDecor.lavender,
-                                  ),
-                                ),
-                              ),
+                            child: Image.network(
+                              CommunityDecor.avatarFor(user.username),
+                              fit: BoxFit.cover,
                             ),
                           ),
                         ),

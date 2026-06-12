@@ -3,21 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
-import '../constants/app_colors.dart';
 import '../models/journal_entry.dart';
 import '../models/journal_model.dart';
+import '../shared/theme/upheal_home_theme.dart';
+import '../shared/widgets/upheal_home_widgets.dart';
 import 'journaling_questions_screen.dart';
 
-const Color _jInk = Color(0xFF0F172A);
-const Color _jPage = Color(0xFFF7F8F4);
-const Color _jSurface = Colors.white;
-const Color _jMuted = Color(0xFF8A93A5);
-const Color _jText = Color(0xFF1D2939);
-const Color _jBlue = Color(0xFF69A9D8);
-const Color _jBlueSoft = Color(0xFFEAF3FB);
-const Color _jPill = Color(0xFFF1F5F9);
-const Color _jLine = Color(0xFFE6EBF2);
-const Color _jSuccess = Color(0xFF5C9FD6);
+const Color _jAccent = Color(0xFF69A9D8);
+const Color _jAccentSoft = Color(0xFFEAF3FB);
 const Color _jHeaderMint = Color(0xFFEFF5EA);
 
 const List<String> _dailyPrompts = [
@@ -172,15 +165,14 @@ class _JournalScreenState extends State<JournalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
 
-    return Scaffold(
-      backgroundColor: isDark ? _jInk : _jPage,
+    return UpHealScaffold(
       body: SafeArea(
         child: Consumer<JournalModel>(
           builder: (context, model, _) {
             return RefreshIndicator(
-              color: _jSuccess,
+              color: _jAccent,
               onRefresh: model.refresh,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -188,14 +180,14 @@ class _JournalScreenState extends State<JournalScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHeader(model, isDark),
+                    _buildHeader(model, tokens),
                     const SizedBox(height: 18),
-                    _buildTabs(isDark),
+                    _buildTabs(tokens),
                     const SizedBox(height: 16),
                     if (_selectedTab == _JournalTab.write)
-                      _buildWriteTab(model, isDark)
+                      _buildWriteTab(model, tokens)
                     else
-                      _buildHistoryTab(model, isDark),
+                      _buildHistoryTab(model, tokens),
                   ],
                 ),
               ),
@@ -206,16 +198,17 @@ class _JournalScreenState extends State<JournalScreen> {
     );
   }
 
-  Widget _buildHeader(JournalModel model, bool isDark) {
+  Widget _buildHeader(JournalModel model, UpHealHomeTheme tokens) {
     final streak = _calculateStreak(model.entries);
     final totalXp = model.entries.fold<int>(0, (sum, entry) => sum + (entry.xpAwarded ?? 10));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Row(
       children: [
         _CircleActionButton(
           icon: LucideIcons.chevronLeft,
           onTap: _goToPreviousPage,
-          isDark: isDark,
+          tokens: tokens,
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -227,7 +220,7 @@ class _JournalScreenState extends State<JournalScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 29,
                   fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : _jText,
+                  color: tokens.primaryText,
                   height: 1.05,
                 ),
               ),
@@ -237,7 +230,7 @@ class _JournalScreenState extends State<JournalScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: isDark ? Colors.white60 : _jMuted,
+                  color: tokens.secondaryText,
                 ),
               ),
             ],
@@ -271,11 +264,11 @@ class _JournalScreenState extends State<JournalScreen> {
     );
   }
 
-  Widget _buildTabs(bool isDark) {
+  Widget _buildTabs(UpHealHomeTheme tokens) {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.07) : _jPill,
+        color: tokens.cardFill,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -286,7 +279,7 @@ class _JournalScreenState extends State<JournalScreen> {
               icon: '✍️',
               isSelected: _selectedTab == _JournalTab.write,
               onTap: () => setState(() => _selectedTab = _JournalTab.write),
-              isDark: isDark,
+              tokens: tokens,
             ),
           ),
           const SizedBox(width: 8),
@@ -296,7 +289,7 @@ class _JournalScreenState extends State<JournalScreen> {
               icon: '📚',
               isSelected: _selectedTab == _JournalTab.history,
               onTap: () => setState(() => _selectedTab = _JournalTab.history),
-              isDark: isDark,
+              tokens: tokens,
             ),
           ),
         ],
@@ -304,7 +297,7 @@ class _JournalScreenState extends State<JournalScreen> {
     );
   }
 
-  Widget _buildWriteTab(JournalModel model, bool isDark) {
+  Widget _buildWriteTab(JournalModel model, UpHealHomeTheme tokens) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -313,11 +306,11 @@ class _JournalScreenState extends State<JournalScreen> {
           promptIndex: _promptIndex,
           promptCount: _dailyPrompts.length,
           onNextPrompt: _showNextPrompt,
-          isDark: isDark,
+          tokens: tokens,
         ),
         const SizedBox(height: 18),
         _SectionCard(
-          isDark: isDark,
+          tokens: tokens,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -326,7 +319,7 @@ class _JournalScreenState extends State<JournalScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : _jText,
+                  color: tokens.primaryText,
                 ),
               ),
               const SizedBox(height: 14),
@@ -339,7 +332,7 @@ class _JournalScreenState extends State<JournalScreen> {
                       child: _MoodTile(
                         mood: mood,
                         isSelected: selected,
-                        isDark: isDark,
+                        tokens: tokens,
                         onTap: () => setState(() => _selectedMood = mood.label),
                       ),
                     ),
@@ -365,20 +358,12 @@ class _JournalScreenState extends State<JournalScreen> {
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withValues(alpha: 0.06) : _jSurface,
+            color: tokens.cardFill,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: isDark ? Colors.white.withValues(alpha: 0.08) : _jLine,
-            ),
-            boxShadow: isDark
+            border: Border.all(color: tokens.cardBorder),
+            boxShadow: tokens.cardShadow == null
                 ? null
-                : const [
-                    BoxShadow(
-                      color: Color(0x140D1B2A),
-                      blurRadius: 18,
-                      offset: Offset(0, 10),
-                    ),
-                  ],
+                : [tokens.cardShadow!],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,14 +376,14 @@ class _JournalScreenState extends State<JournalScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   height: 1.7,
-                  color: isDark ? Colors.white : _jText,
+                  color: tokens.primaryText,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Start writing freely... there\'s no judgment here.\nLet it flow.',
                   hintStyle: GoogleFonts.inter(
                     fontSize: 16,
                     height: 1.7,
-                    color: isDark ? Colors.white60 : _jMuted,
+                    color: tokens.secondaryText,
                   ),
                   border: InputBorder.none,
                   isCollapsed: true,
@@ -412,7 +397,7 @@ class _JournalScreenState extends State<JournalScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: isDark ? Colors.white60 : _jMuted,
+                    color: tokens.secondaryText,
                   ),
                 ),
               ),
@@ -426,21 +411,22 @@ class _JournalScreenState extends State<JournalScreen> {
               child: Container(
                 height: 54,
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.07) : _jPill,
+                  color: tokens.cardFill,
                   borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: tokens.dividerColor),
                 ),
                 child: Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(LucideIcons.mic, size: 18, color: isDark ? Colors.white60 : _jMuted),
+                      Icon(LucideIcons.mic, size: 18, color: tokens.secondaryText),
                       const SizedBox(width: 8),
                       Text(
                         'Voice Note',
                         style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white60 : _jMuted,
+                          color: tokens.secondaryText,
                         ),
                       ),
                     ],
@@ -456,7 +442,7 @@ class _JournalScreenState extends State<JournalScreen> {
                   onPressed: _isSaving ? null : _saveEntry,
                   style: ElevatedButton.styleFrom(
                     elevation: 0,
-                    backgroundColor: _canSave ? _jSuccess : _jSuccess.withValues(alpha: 0.45),
+                    backgroundColor: _canSave ? _jAccent : _jAccent.withValues(alpha: 0.45),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                   ),
@@ -486,13 +472,13 @@ class _JournalScreenState extends State<JournalScreen> {
     );
   }
 
-  Widget _buildHistoryTab(JournalModel model, bool isDark) {
+  Widget _buildHistoryTab(JournalModel model, UpHealHomeTheme tokens) {
     final entries = model.entries;
 
     if (model.isLoading && entries.isEmpty) {
       return Padding(
         padding: const EdgeInsets.only(top: 80),
-        child: Center(child: CircularProgressIndicator(color: _jSuccess)),
+        child: Center(child: CircularProgressIndicator(color: _jAccent)),
       );
     }
 
@@ -508,7 +494,7 @@ class _JournalScreenState extends State<JournalScreen> {
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.4,
-                color: isDark ? Colors.white60 : _jMuted,
+                color: tokens.secondaryText,
               ),
             ),
             Text(
@@ -516,7 +502,7 @@ class _JournalScreenState extends State<JournalScreen> {
               style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: _jBlue,
+                color: _jAccent,
               ),
             ),
           ],
@@ -524,7 +510,7 @@ class _JournalScreenState extends State<JournalScreen> {
         const SizedBox(height: 14),
         if (entries.isEmpty)
           _SectionCard(
-            isDark: isDark,
+            tokens: tokens,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 18),
               child: Column(
@@ -536,7 +522,7 @@ class _JournalScreenState extends State<JournalScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : _jText,
+                      color: tokens.primaryText,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -545,7 +531,7 @@ class _JournalScreenState extends State<JournalScreen> {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 14,
-                      color: isDark ? Colors.white60 : _jMuted,
+                      color: tokens.secondaryText,
                     ),
                   ),
                 ],
@@ -557,7 +543,7 @@ class _JournalScreenState extends State<JournalScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _HistoryEntryCard(
                   entry: entry,
-                  isDark: isDark,
+                  tokens: tokens,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -571,8 +557,9 @@ class _JournalScreenState extends State<JournalScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF5F8FD),
+            color: tokens.cardFill,
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: tokens.cardBorder),
           ),
           child: Column(
             children: [
@@ -583,7 +570,7 @@ class _JournalScreenState extends State<JournalScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : _jText,
+                  color: tokens.primaryText,
                 ),
               ),
               const SizedBox(height: 4),
@@ -592,7 +579,7 @@ class _JournalScreenState extends State<JournalScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: _jBlue,
+                  color: _jAccent,
                 ),
               ),
             ],
@@ -636,18 +623,18 @@ class _JournalScreenState extends State<JournalScreen> {
 class _CircleActionButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  final bool isDark;
+  final UpHealHomeTheme tokens;
 
   const _CircleActionButton({
     required this.icon,
     required this.onTap,
-    required this.isDark,
+    required this.tokens,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isDark ? Colors.white.withValues(alpha: 0.08) : _jPill,
+      color: tokens.cardFill,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -658,7 +645,7 @@ class _CircleActionButton extends StatelessWidget {
           child: Icon(
             icon,
             size: 18,
-            color: isDark ? Colors.white : AppColors.textPrimary,
+            color: tokens.primaryText,
           ),
         ),
       ),
@@ -671,20 +658,22 @@ class _JournalTabButton extends StatelessWidget {
   final String icon;
   final bool isSelected;
   final VoidCallback onTap;
-  final bool isDark;
+  final UpHealHomeTheme tokens;
 
   const _JournalTabButton({
     required this.label,
     required this.icon,
     required this.isSelected,
     required this.onTap,
-    required this.isDark,
+    required this.tokens,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Material(
-      color: isSelected ? (isDark ? Colors.white : _jSurface) : Colors.transparent,
+      color: isSelected ? (isDark ? Colors.white.withValues(alpha: 0.12) : Colors.white) : Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -693,15 +682,6 @@ class _JournalTabButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            boxShadow: isSelected && !isDark
-                ? const [
-                    BoxShadow(
-                      color: Color(0x120D1B2A),
-                      blurRadius: 14,
-                      offset: Offset(0, 6),
-                    ),
-                  ]
-                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -713,7 +693,7 @@ class _JournalTabButton extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: isSelected ? _jText : (isDark ? Colors.white60 : _jMuted),
+                  color: isSelected ? tokens.primaryText : tokens.secondaryText,
                 ),
               ),
             ],
@@ -729,18 +709,20 @@ class _PromptCard extends StatelessWidget {
   final int promptIndex;
   final int promptCount;
   final VoidCallback onNextPrompt;
-  final bool isDark;
+  final UpHealHomeTheme tokens;
 
   const _PromptCard({
     required this.prompt,
     required this.promptIndex,
     required this.promptCount,
     required this.onNextPrompt,
-    required this.isDark,
+    required this.tokens,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -761,7 +743,7 @@ class _PromptCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(LucideIcons.bookOpen, size: 14, color: _jBlue),
+                  Icon(LucideIcons.bookOpen, size: 14, color: _jAccent),
                   const SizedBox(width: 6),
                   Text(
                     'TODAY\'S PROMPT',
@@ -769,7 +751,7 @@ class _PromptCard extends StatelessWidget {
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.4,
-                      color: _jBlue,
+                      color: _jAccent,
                     ),
                   ),
                 ],
@@ -780,7 +762,7 @@ class _PromptCard extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white60 : _jMuted,
+                  color: tokens.secondaryText,
                 ),
               ),
             ],
@@ -792,7 +774,7 @@ class _PromptCard extends StatelessWidget {
               fontSize: 22,
               fontWeight: FontWeight.w600,
               height: 1.45,
-              color: isDark ? Colors.white : _jText,
+              color: tokens.primaryText,
             ),
           ),
           const SizedBox(height: 16),
@@ -801,14 +783,14 @@ class _PromptCard extends StatelessWidget {
               _PromptActionButton(
                 icon: LucideIcons.chevronLeft,
                 label: '',
-                isDark: isDark,
+                tokens: tokens,
                 onTap: null,
               ),
               const SizedBox(width: 8),
               _PromptActionButton(
                 icon: LucideIcons.chevronRight,
                 label: 'Next prompt',
-                isDark: isDark,
+                tokens: tokens,
                 onTap: onNextPrompt,
               ),
             ],
@@ -822,13 +804,13 @@ class _PromptCard extends StatelessWidget {
 class _PromptActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final bool isDark;
+  final UpHealHomeTheme tokens;
   final VoidCallback? onTap;
 
   const _PromptActionButton({
     required this.icon,
     required this.label,
-    required this.isDark,
+    required this.tokens,
     required this.onTap,
   });
 
@@ -836,7 +818,7 @@ class _PromptActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = onTap != null;
     return Material(
-      color: isDark ? Colors.white.withValues(alpha: 0.09) : Colors.white,
+      color: tokens.cardFill,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -849,7 +831,7 @@ class _PromptActionButton extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: enabled ? _jBlue : (isDark ? Colors.white24 : _jMuted.withValues(alpha: 0.45)),
+                color: enabled ? _jAccent : tokens.faintText,
               ),
               if (label.isNotEmpty) ...[
                 const SizedBox(width: 6),
@@ -858,7 +840,7 @@ class _PromptActionButton extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: enabled ? _jBlue : (isDark ? Colors.white24 : _jMuted.withValues(alpha: 0.45)),
+                    color: enabled ? _jAccent : tokens.faintText,
                   ),
                 ),
               ],
@@ -872,9 +854,9 @@ class _PromptActionButton extends StatelessWidget {
 
 class _SectionCard extends StatelessWidget {
   final Widget child;
-  final bool isDark;
+  final UpHealHomeTheme tokens;
 
-  const _SectionCard({required this.child, required this.isDark});
+  const _SectionCard({required this.child, required this.tokens});
 
   @override
   Widget build(BuildContext context) {
@@ -882,18 +864,12 @@ class _SectionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.06) : _jSurface,
+        color: tokens.cardFill,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.08) : _jLine),
-        boxShadow: isDark
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow == null
             ? null
-            : const [
-                BoxShadow(
-                  color: Color(0x140D1B2A),
-                  blurRadius: 18,
-                  offset: Offset(0, 10),
-                ),
-              ],
+            : [tokens.cardShadow!],
       ),
       child: child,
     );
@@ -903,18 +879,20 @@ class _SectionCard extends StatelessWidget {
 class _MoodTile extends StatelessWidget {
   final _JournalMood mood;
   final bool isSelected;
-  final bool isDark;
+  final UpHealHomeTheme tokens;
   final VoidCallback onTap;
 
   const _MoodTile({
     required this.mood,
     required this.isSelected,
-    required this.isDark,
+    required this.tokens,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -925,13 +903,13 @@ class _MoodTile extends StatelessWidget {
           height: 56,
           decoration: BoxDecoration(
             color: isSelected
-                ? (isDark ? _jBlue.withValues(alpha: 0.24) : _jBlueSoft)
-                : (isDark ? Colors.white.withValues(alpha: 0.05) : _jPill),
+                ? (isDark ? _jAccent.withValues(alpha: 0.24) : _jAccentSoft)
+                : tokens.cardFill,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isSelected
-                  ? _jBlue
-                  : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.transparent),
+                  ? _jAccent
+                  : tokens.cardBorder,
             ),
           ),
           child: Center(
@@ -948,12 +926,12 @@ class _MoodTile extends StatelessWidget {
 
 class _HistoryEntryCard extends StatelessWidget {
   final JournalEntry entry;
-  final bool isDark;
+  final UpHealHomeTheme tokens;
   final VoidCallback onTap;
 
   const _HistoryEntryCard({
     required this.entry,
-    required this.isDark,
+    required this.tokens,
     required this.onTap,
   });
 
@@ -971,18 +949,12 @@ class _HistoryEntryCard extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withValues(alpha: 0.06) : _jSurface,
+            color: tokens.cardFill,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.08) : _jLine),
-            boxShadow: isDark
+            border: Border.all(color: tokens.cardBorder),
+            boxShadow: tokens.cardShadow == null
                 ? null
-                : const [
-                    BoxShadow(
-                      color: Color(0x120D1B2A),
-                      blurRadius: 14,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
+                : [tokens.cardShadow!],
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -998,7 +970,7 @@ class _HistoryEntryCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 21,
                         fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : _jText,
+                        color: tokens.primaryText,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -1007,7 +979,7 @@ class _HistoryEntryCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: _jBlue,
+                        color: _jAccent,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -1016,14 +988,14 @@ class _HistoryEntryCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         height: 1.55,
-                        color: isDark ? Colors.white60 : _jMuted,
+                        color: tokens.secondaryText,
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(LucideIcons.chevronRight, size: 18, color: isDark ? Colors.white60 : _jMuted),
+              Icon(LucideIcons.chevronRight, size: 18, color: tokens.secondaryText),
             ],
           ),
         ),

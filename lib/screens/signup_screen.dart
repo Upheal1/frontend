@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../models/auth_model.dart';
 import '../navigation/app_routes.dart';
+import '../navigation/navigation_helpers.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -22,6 +23,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   bool _agreedToTerms = false;
   String _passwordStrength = '';
 
@@ -95,6 +97,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      final authModel = Provider.of<AuthModel>(context, listen: false);
+      final result = await authModel.signInWithGoogle();
+      if (mounted) setState(() => _isGoogleLoading = false);
+      if (result == true) {
+        context.go(const HomeRoute().location);
+      } else {
+        final error = authModel.errorMessage;
+        if (error != null && mounted) {
+          _showErrorDialog(error);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
+        _showErrorDialog('Google sign-in failed. Please try again.');
+      }
+    }
+  }
+
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -126,7 +150,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => safeGoBack(context),
               child: Text(
                 'Try Again',
                 style: GoogleFonts.inter(
@@ -412,7 +436,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 // ── Log in link ───────────────────────────────────
                 Center(
                   child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => context.go(const LoginRoute().location),
                     child: RichText(
                       text: TextSpan(
                         text: 'Already have an account? ',
@@ -591,35 +615,44 @@ class _SignUpScreenState extends State<SignUpScreen> {
       width: double.infinity,
       height: 52,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Color(0xFFE5E7EB)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'G',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF4285F4),
+        child: _isGoogleLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF111827)),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'G',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF4285F4),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Continue with Google',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF111827),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Continue with Google',
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF111827),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

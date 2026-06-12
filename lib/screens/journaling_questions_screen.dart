@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../models/journal_entry.dart';
-import '../constants/app_colors.dart';
+import '../shared/theme/upheal_home_theme.dart';
+import '../shared/widgets/upheal_home_widgets.dart';
 
 int _calcWordCount(String text) {
   final t = text.trim();
@@ -14,7 +15,7 @@ int _calcWordCount(String text) {
 
 const Color _dvSky  = Color(0xFF72B4D5);
 const Color _dvTeal = Color(0xFF4ECDC4);
-const Color _dvGray = Color(0xFF6B7280);
+
 const Color _dvGold = Color(0xFFD97706);
 
 // ─────────────────────────── Screen ───────────────────────────────────────
@@ -25,24 +26,23 @@ class JournalingDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
     final dateStr = _formatDate(entry.date);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F1419) : const Color(0xFFFAFAF8),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF1A1F2E) : Colors.white,
+        backgroundColor: tokens.cardFill,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(LucideIcons.arrowLeft,
-            color: isDark ? Colors.white : AppColors.textPrimary),
+          icon: Icon(LucideIcons.arrowLeft, color: tokens.primaryText),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text('Journal Entry',
           style: GoogleFonts.inter(
             fontSize: 17, fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : AppColors.textPrimary)),
+            color: tokens.primaryText)),
         actions: [
           if (entry.xpAwarded != null)
             Container(
@@ -63,34 +63,27 @@ class JournalingDetailsScreen extends StatelessWidget {
             ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: UpHealPageBackground(
+        child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // ── Header card ────────────────────────────────────────────
-          Container(
-            width: double.infinity,
+          AppCard(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E2535) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-                blurRadius: 8, offset: const Offset(0, 2))],
-            ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(dateStr,
                     style: GoogleFonts.inter(
                       fontSize: 18, fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : AppColors.textPrimary)),
+                      color: tokens.primaryText)),
                   const SizedBox(height: 4),
                   Text('${_calcWordCount(entry.entryText)} words',
                     style: GoogleFonts.inter(
-                      fontSize: 13, color: isDark ? Colors.white54 : _dvGray)),
+                      fontSize: 13, color: tokens.secondaryText)),
                 ]),
               ),
-              if (entry.moodLabel != null) _MoodBadge(mood: entry.moodLabel!, isDark: isDark),
+              if (entry.moodLabel != null) _MoodBadge(mood: entry.moodLabel!),
             ]),
           ),
 
@@ -113,7 +106,7 @@ class JournalingDetailsScreen extends StatelessWidget {
                   child: Text(entry.promptText!,
                     style: GoogleFonts.inter(
                       fontSize: 13, fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.white70 : _dvGray, height: 1.45)),
+                      color: tokens.secondaryText, height: 1.45)),
                 ),
               ]),
             ),
@@ -121,23 +114,16 @@ class JournalingDetailsScreen extends StatelessWidget {
           ],
 
           // ── Entry text ─────────────────────────────────────────────
-          Container(
-            width: double.infinity,
+          AppCard(
             padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E2535) : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04),
-                blurRadius: 6, offset: const Offset(0, 2))],
-            ),
             child: Text(entry.entryText,
               style: GoogleFonts.inter(
                 fontSize: 15,
-                color: isDark ? Colors.white : AppColors.textPrimary,
+                color: tokens.primaryText,
                 height: 1.7)),
           ),
         ]),
+      ),
       ),
     );
   }
@@ -180,8 +166,7 @@ Color _moodColor(String? mood) {
 
 class _MoodBadge extends StatelessWidget {
   final String mood;
-  final bool isDark;
-  const _MoodBadge({required this.mood, required this.isDark});
+  const _MoodBadge({required this.mood});
 
   @override
   Widget build(BuildContext context) {

@@ -79,6 +79,16 @@ class SignUpRoute extends AppRouteData {
   String get location => path;
 }
 
+class ForgotPasswordRoute extends AppRouteData {
+  const ForgotPasswordRoute();
+
+  static const String name = 'forgotPassword';
+  static const String path = '/auth/forgot-password';
+
+  @override
+  String get location => path;
+}
+
 class OnboardingStepRoute extends AppRouteData {
   const OnboardingStepRoute(this.step);
 
@@ -270,6 +280,16 @@ class RoadmapRoute extends AppRouteData {
   String get location => path;
 }
 
+class Roadmap2Route extends AppRouteData {
+  const Roadmap2Route();
+
+  static const String name = 'roadmap2';
+  static const String path = '/app/roadmap2';
+
+  @override
+  String get location => path;
+}
+
 class RoadmapWorldRoute extends AppRouteData {
   const RoadmapWorldRoute(this.worldId);
 
@@ -448,6 +468,7 @@ const List<AppDrawerDestination> appDrawerDestinations = <AppDrawerDestination>[
   AppDrawerDestination(icon: LucideIcons.footprints, label: 'Step Tracker', route: StepTrackerRoute()),
   AppDrawerDestination(icon: LucideIcons.brain, label: 'My Results', route: MyAssessmentRoute()),
   AppDrawerDestination(icon: LucideIcons.map, label: 'Roadmap', route: RoadmapRoute()),
+  AppDrawerDestination(icon: LucideIcons.play, label: 'Roadmap Demo', route: Roadmap2Route()),
   AppDrawerDestination(icon: LucideIcons.bookOpen, label: 'Journaling', route: JournalRoute()),
   AppDrawerDestination(icon: LucideIcons.ban, label: 'Block Apps', route: BlockAppsRoute()),
   AppDrawerDestination(icon: LucideIcons.settings, label: 'Settings', route: SettingsRoute()),
@@ -479,6 +500,7 @@ const List<AppDrawerSection> appDrawerSections = <AppDrawerSection>[
     title: 'Learning & Growth',
     items: <AppDrawerDestination>[
       AppDrawerDestination(icon: LucideIcons.map, label: 'Roadmaps', route: RoadmapRoute()),
+      AppDrawerDestination(icon: LucideIcons.play, label: 'Roadmap Demo', route: Roadmap2Route()),
       AppDrawerDestination(icon: LucideIcons.graduationCap, label: 'Courses', route: CoursesRoute()),
       AppDrawerDestination(icon: LucideIcons.users, label: 'Community', route: CommunityRoute()),
       AppDrawerDestination(icon: LucideIcons.sparkles, label: 'AI Coach', route: AiChatRoute()),
@@ -536,6 +558,7 @@ const Set<String> publicRoutePrefixes = <String>{
   WelcomeRoute.path,
   LoginRoute.path,
   SignUpRoute.path,
+  ForgotPasswordRoute.path,
   '/onboarding',
   '/onboarding-flow',
   AvatarTestRoute.path,

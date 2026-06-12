@@ -114,7 +114,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         .map(
                           (m) => ListTile(
                             leading: CircleAvatar(
-                              child: Text(m.displayName.characters.first.toUpperCase()),
+                              backgroundImage: NetworkImage(
+                                CommunityDecor.avatarFor(m.displayName),
+                              ),
                             ),
                             title: Text(m.displayName, style: GoogleFonts.inter()),
                             subtitle: Text(

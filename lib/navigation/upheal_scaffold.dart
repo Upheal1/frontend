@@ -5,6 +5,9 @@ import '../shared/navigation/premium_bottom_navigation_bar.dart';
 import '../shared/theme/upheal_home_theme.dart';
 
 class UpHealScaffold extends StatelessWidget {
+  static const double navVisualHeight = 68;
+  static const double navContentGap = 16;
+
   final Widget body;
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -25,6 +28,9 @@ class UpHealScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UpHealHomeTheme tokens = Theme.of(context).upHealHome;
+    final double bottomSafe = MediaQuery.of(context).padding.bottom;
+    final double bodyBottomInset =
+        hideNav ? 0.0 : navVisualHeight + navContentGap + bottomSafe;
 
     return Scaffold(
       key: rootScaffoldKey,
@@ -33,22 +39,17 @@ class UpHealScaffold extends StatelessWidget {
       drawer: drawer,
       body: DecoratedBox(
         decoration: BoxDecoration(gradient: tokens.pageGradient),
-        child: MediaQuery.removePadding(
-          context: context,
-          removeBottom: true,
-          child: body,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bodyBottomInset),
+          child: MediaQuery.removePadding(
+            context: context,
+            removeBottom: true,
+            child: body,
+          ),
         ),
       ),
-      bottomNavigationBar: hideNav
-          ? null
-          : Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _Nav(
-                index: currentIndex,
-                onTap: onTap,
-                onFab: onFab,
-              ),
-            ),
+      bottomNavigationBar:
+          hideNav ? null : _Nav(index: currentIndex, onTap: onTap, onFab: onFab),
     );
   }
 }

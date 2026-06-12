@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../models/auth_model.dart';
 import '../navigation/app_routes.dart';
+import '../navigation/navigation_helpers.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
 
   @override
   void dispose() {
@@ -54,6 +56,28 @@ class _LoginScreenState extends State<LoginScreen> {
           if (kDebugMode) debugPrint('Login error: $e');
           _showErrorDialog('An unexpected error occurred. Please try again.');
         }
+      }
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      final authModel = Provider.of<AuthModel>(context, listen: false);
+      final result = await authModel.signInWithGoogle();
+      if (mounted) setState(() => _isGoogleLoading = false);
+      if (result == true) {
+        _navigateHome();
+      } else {
+        final error = authModel.errorMessage;
+        if (error != null && mounted) {
+          _showErrorDialog(error);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
+        _showErrorDialog('Google sign-in failed. Please try again.');
       }
     }
   }
@@ -133,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => safeGoBack(context),
               child: Text(
                 'Try Again',
                 style: GoogleFonts.inter(
@@ -145,102 +169,10 @@ class _LoginScreenState extends State<LoginScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _showForgotPasswordDialog();
+                const ForgotPasswordRoute().push<void>(context);
               },
               child: Text(
                 'Forgot Password?',
-                style: GoogleFonts.inter(
-                  color: Colors.blue.shade600,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showForgotPasswordDialog() {
-    final emailController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: Colors.blue.shade50,
-          title: Row(
-            children: [
-              Icon(Icons.lock_reset, color: Colors.blue.shade600, size: 28),
-              const SizedBox(width: 12),
-              Text(
-                'Reset Password',
-                style: GoogleFonts.inter(
-                  color: Colors.blue.shade800,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Enter your email address and we\'ll send you a link to reset your password.',
-                style: GoogleFonts.inter(
-                  color: Colors.blue.shade700,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: 'Email Address',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.inter(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (emailController.text.isNotEmpty) {
-                  final authModel =
-                  Provider.of<AuthModel>(context, listen: false);
-                  await authModel
-                      .sendPasswordResetEmail(emailController.text);
-
-                  Navigator.of(context).pop();
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          'Password reset email sent to ${emailController.text}'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              },
-              child: Text(
-                'Send Reset Link',
                 style: GoogleFonts.inter(
                   color: Colors.blue.shade600,
                   fontWeight: FontWeight.w600,
@@ -372,7 +304,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // ── Forgot password ───────────────────────────────
                 GestureDetector(
-                  onTap: _showForgotPasswordDialog,
+                  onTap: () => const ForgotPasswordRoute().push<void>(context),
                   child: RichText(
                     text: TextSpan(
                       text: 'Forgot your password? ',
@@ -615,35 +547,44 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       height: 52,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Color(0xFFE5E7EB)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'G',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF4285F4),
+        child: _isGoogleLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF111827)),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'G',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF4285F4),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Continue with Google',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF111827),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Continue with Google',
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF111827),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

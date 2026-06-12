@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../features/community/services/community_supabase.dart';
 
@@ -163,6 +164,47 @@ class AuthModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> signInWithGoogle() async {
+    final client = _client;
+    if (client == null) {
+      _errorMessage = 'Auth service not configured';
+      notifyListeners();
+      return false;
+    }
+    try {
+      await GoogleSignIn.instance.initialize();
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final googleAuth = googleUser.authentication;
+      if (googleAuth.idToken == null) {
+        _errorMessage = 'Failed to get Google authentication token';
+        notifyListeners();
+        return false;
+      }
+      await client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: googleAuth.idToken!,
+      );
+      _isAuthenticated = true;
+      _userEmail = client.auth.currentUser?.email;
+      _userName = client.auth.currentUser?.userMetadata?['display_name'] as String? ??
+          client.auth.currentUser?.userMetadata?['name'] as String? ??
+          googleUser.displayName;
+      _errorMessage = null;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      if (kDebugMode) debugPrint('Google sign-in error: ${e.message}');
+      _errorMessage = e.message;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Google sign-in error: $e');
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     try {
       await _client?.auth.signOut();
@@ -194,11 +236,15 @@ class AuthModel extends ChangeNotifier {
         '${DateTime.now().toIso8601String()} - 2FA ${enabled ? 'enabled' : 'disabled'}');
   }
 
-  Future<void> sendPasswordResetEmail(String email) async {
+  Future<bool> sendPasswordResetEmail(String email) async {
     try {
       await _client?.auth.resetPasswordForEmail(email);
+      return true;
     } catch (e) {
       if (kDebugMode) debugPrint('Password reset error: $e');
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
     }
   }
 

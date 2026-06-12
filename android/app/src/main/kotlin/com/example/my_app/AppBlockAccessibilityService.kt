@@ -137,29 +137,33 @@ class AppBlockAccessibilityService : AccessibilityService() {
     // ==========================================
     private fun captureAndAnalyzeScreen() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            takeScreenshot(Display.DEFAULT_DISPLAY, applicationContext.mainExecutor, object : TakeScreenshotCallback {
-                override fun onSuccess(screenshot: ScreenshotResult) {
-                    try {
-                        val hardwareBuffer = screenshot.hardwareBuffer
-                        val bitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, screenshot.colorSpace)
+            try {
+                takeScreenshot(Display.DEFAULT_DISPLAY, applicationContext.mainExecutor, object : TakeScreenshotCallback {
+                    override fun onSuccess(screenshot: ScreenshotResult) {
+                        try {
+                            val hardwareBuffer = screenshot.hardwareBuffer
+                            val bitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, screenshot.colorSpace)
 
-                        val isNsfw = visionClassifier?.analyzeImage(bitmap!!) ?: false
-                        if (isNsfw) {
-                            Log.e("EdgeAIVision", "🚨 NSFW Detected!")
-                            performGlobalAction(GLOBAL_ACTION_HOME)
-                            triggerAppBlockWarning("NSFW_IMAGE_DETECTED", "تم اكتشاف محتوى غير لائق")
+                            val isNsfw = visionClassifier?.analyzeImage(bitmap!!) ?: false
+                            if (isNsfw) {
+                                Log.e("EdgeAIVision", "🚨 NSFW Detected!")
+                                performGlobalAction(GLOBAL_ACTION_HOME)
+                                triggerAppBlockWarning("NSFW_IMAGE_DETECTED", "تم اكتشاف محتوى غير لائق")
+                            }
+
+                            bitmap?.recycle()
+                            hardwareBuffer.close()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error processing screenshot: ${e.message}")
                         }
-
-                        bitmap?.recycle()
-                        hardwareBuffer.close()
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error processing screenshot: ${e.message}")
                     }
-                }
-                override fun onFailure(errorCode: Int) {
-                    Log.e(TAG, "Screenshot failed: $errorCode")
-                }
-            })
+                    override fun onFailure(errorCode: Int) {
+                        Log.e(TAG, "Screenshot failed: $errorCode")
+                    }
+                })
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Screenshot not permitted: ${e.message}")
+            }
         }
     }
 

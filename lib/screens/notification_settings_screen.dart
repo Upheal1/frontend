@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/notification_service.dart';
 import '../models/notification_types.dart';
+import '../navigation/navigation_helpers.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -262,7 +263,7 @@ class _NotificationSettingsScreenState
             LucideIcons.arrowLeft,
             color: isDark ? Colors.white : Colors.black87,
           ),
-          onPressed: () => Navigator.of(context).maybePop(),
+          onPressed: () => safeGoBack(context),
         ),
         title: Text(
           'Notifications',

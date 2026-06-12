@@ -1,8 +1,9 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
-import 'dart:typed_data';
+import '../widgets/common/skeleton_loader.dart';
 import '../widgets/drawer_menu_button.dart';
 
 class BlockAppsScreen extends StatefulWidget {
@@ -15,6 +16,10 @@ class BlockAppsScreen extends StatefulWidget {
 class _BlockAppsScreenState extends State<BlockAppsScreen> {
   static const platform = MethodChannel('com.appguard.native_calls');
 
+  // ── In-memory cache ──────────────────────────────────────────────────
+  static List<Map<String, dynamic>>? _cachedInstalledApps;
+  static Map<String, Uint8List?> _cachedAppIcons = {};
+
   List<Map<String, dynamic>> installedApps = [];
   Set<String> blockedPackages = {};
   bool isLoading = true;
@@ -23,6 +28,7 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
   bool isBlockingActive = false;
   String searchQuery = '';
   Map<String, Uint8List?> appIcons = {};
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -32,11 +38,39 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
 
   Future<void> _initializeScreen() async {
     await _checkPermissions();
+
+    if (_cachedInstalledApps != null) {
+      // Restore from cache — no native call needed
+      setState(() {
+        installedApps = _cachedInstalledApps!;
+        appIcons = Map<String, Uint8List?>.from(_cachedAppIcons);
+        isLoading = false;
+      });
+    } else {
+      // First load — skeleton is shown while native call runs
+      await _loadInstalledApps();
+    }
+
+    await _loadBlockedApps();
+
+    // If cache was just populated, turn off loading
+    if (_cachedInstalledApps == null && installedApps.isNotEmpty) {
+      _saveToCache();
+      setState(() => isLoading = false);
+    }
+  }
+
+  void _saveToCache() {
+    _cachedInstalledApps = List<Map<String, dynamic>>.from(installedApps);
+    _cachedAppIcons = Map<String, Uint8List?>.from(appIcons);
+  }
+
+  Future<void> _refreshApps() async {
+    setState(() => _isRefreshing = true);
     await _loadInstalledApps();
     await _loadBlockedApps();
-    setState(() {
-      isLoading = false;
-    });
+    _saveToCache();
+    setState(() => _isRefreshing = false);
   }
 
   Future<void> _checkPermissions() async {
@@ -87,8 +121,8 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
         );
       });
       
-      // Load app icons asynchronously
-      _loadAppIcons();
+      // Load app icons (awaited so cache captures them)
+      await _loadAppIcons();
     } catch (e) {
       print('Error loading installed apps: $e');
       _showErrorSnackbar('Failed to load installed apps');
@@ -96,21 +130,28 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
   }
 
   Future<void> _loadAppIcons() async {
-    for (final app in installedApps) {
-      final packageName = app['packageName'] as String;
-      try {
-        final iconBytes = await platform.invokeMethod('getAppIcon', {
-          'packageName': packageName,
-        });
-        if (iconBytes != null) {
-          setState(() {
-            appIcons[packageName] = iconBytes as Uint8List;
+    // Load icons in batches of 15 to reduce rebuilds
+    final batchSize = 15;
+    for (int start = 0; start < installedApps.length; start += batchSize) {
+      final end = (start + batchSize < installedApps.length)
+          ? start + batchSize
+          : installedApps.length;
+      final batch = installedApps.sublist(start, end);
+      for (final app in batch) {
+        final packageName = app['packageName'] as String;
+        try {
+          final iconBytes = await platform.invokeMethod('getAppIcon', {
+            'packageName': packageName,
           });
+          if (iconBytes != null) {
+            appIcons[packageName] = iconBytes as Uint8List;
+          }
+        } catch (e) {
+          print('Error loading icon for $packageName: $e');
         }
-      } catch (e) {
-        // Icon not available, will use fallback
-        print('Error loading icon for $packageName: $e');
       }
+      // Batch-update after each group to limit setState calls
+      if (mounted) setState(() {});
     }
   }
 
@@ -261,9 +302,14 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
           // Main content
           Expanded(
             child: isLoading
-                ? Center(
-                    child: CircularProgressIndicator(
-                      color: primaryColor,
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: ListView.builder(
+                      itemCount: 8,
+                      itemBuilder: (_, __) => const Padding(
+                        padding: EdgeInsets.only(bottom: 6),
+                        child: SkeletonLoader.listItemSkeleton(),
+                      ),
                     ),
                   )
                 : Column(
@@ -273,7 +319,14 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
                       _buildBlockingControlCard(),
                       _buildSearchBar(),
                       _buildBlockedAppsCount(),
-                      Expanded(child: _buildAppsList()),
+                      Expanded(
+                        child: _isRefreshing
+                            ? const Center(child: CircularProgressIndicator())
+                            : RefreshIndicator(
+                                onRefresh: _refreshApps,
+                                child: _buildAppsList(),
+                              ),
+                      ),
                     ],
                   ),
           ),

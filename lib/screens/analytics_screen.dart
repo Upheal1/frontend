@@ -21,10 +21,12 @@ import '../widgets/analytics/limited_functionality_banner.dart';
 import 'onboarding/analytics_permission_onboarding.dart';
 import '../widgets/drawer_menu_button.dart';
 import 'comparison_screen.dart';
-import 'insights_screen.dart';
+import '../navigation/app_routes.dart';
 import '../models/insight_model.dart';
 import '../services/insights_service.dart';
 import '../widgets/insights/insight_card.dart';
+import '../widgets/analytics/digital_balance_hero.dart';
+import '../widgets/analytics/healthy_limits_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -266,11 +268,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
   }
 
   void _navigateToInsights() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const InsightsScreen(),
-      ),
-    );
+    const InsightsRoute().push(context);
   }
 
   Future<void> _onRefresh() async {
@@ -470,7 +468,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
     if (isBusy) {
       return SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         child: Column(
           children: const [
             SkeletonLoader.cardSkeleton(),
@@ -488,7 +486,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
     if (!_hasPermission) {
       return SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         child: Column(
           children: [
             // Show limited functionality banner if onboarding was completed but permission denied
@@ -529,23 +527,48 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       child: Column(
         children: [
           _buildTimePeriodSelector(),
           const SizedBox(height: 20),
-          _buildInsightsPreviewCard(),
+          DigitalBalanceHero(
+            totalSeconds: totalScreenTime,
+            focusScore: _calculateFocusScore(),
+            appCount: usageData.length,
+            blockedCount: blockedPackages.length,
+            periodLabel: _timePeriodLabel,
+          ),
           const SizedBox(height: 20),
-          _buildOverviewCards(),
+          HealthyLimitsCard(
+            totalSeconds: totalScreenTime,
+            totalAppCount: usageData.length,
+            blockedCount: blockedPackages.length,
+            focusScore: _calculateFocusScore(),
+          ),
           const SizedBox(height: 20),
           _buildUsageChart(),
           const SizedBox(height: 20),
           _buildAppUsageBarChart(),
           const SizedBox(height: 20),
           _buildTopApps(),
+          const SizedBox(height: 20),
+          _buildInsightsPreviewCard(),
         ],
       ),
     );
+  }
+
+  String get _timePeriodLabel {
+    switch (_selectedTimePeriod) {
+      case 'yesterday': return 'Yesterday';
+      case 'weekly': return 'This Week';
+      case 'monthly': return 'This Month';
+      case '3months': return 'Last 3 Months';
+      case '6months': return 'Last 6 Months';
+      case '1year': return 'Last Year';
+      default: return 'Today';
+    }
   }
 
   Widget _buildInsightsPreviewCard() {
@@ -1053,119 +1076,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildOverviewCards() {
-    String timeLabel;
-    switch (_selectedTimePeriod) {
-      case 'yesterday':
-        timeLabel = 'Yesterday';
-        break;
-      case 'weekly':
-        timeLabel = 'This Week';
-        break;
-      case 'monthly':
-        timeLabel = 'This Month';
-        break;
-      case '3months':
-        timeLabel = 'Last 3 Months';
-        break;
-      case '6months':
-        timeLabel = 'Last 6 Months';
-        break;
-      case '1year':
-        timeLabel = 'Last Year';
-        break;
-      default:
-        timeLabel = 'Today';
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            title: timeLabel,
-            value: _formatTime(totalScreenTime),
-            icon: LucideIcons.clock,
-            color: const Color(0xFF7C3AED),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            title: 'Apps Used',
-            value: '${usageData.length}',
-            icon: LucideIcons.smartphone,
-            color: const Color(0xFF4CAF50),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final cardBgColor1 = isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade50;
-    final cardBgColor2 = isDark ? Colors.white.withOpacity(0.05) : Colors.white;
-    final borderColor = isDark ? Colors.white.withOpacity(0.2) : Colors.grey.shade200;
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            cardBgColor1,
-            cardBgColor2,
-          ],
-        ),
-        border: Border.all(
-          color: borderColor,
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(25),
-              color: color.withOpacity(0.2),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 25,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
-          ),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: textColor.withOpacity(0.7),
-            ),
-          ),
-        ],
       ),
     );
   }

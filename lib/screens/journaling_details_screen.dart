@@ -4,13 +4,11 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../models/journal_entry.dart';
 import '../models/journal_model.dart';
-import '../constants/app_colors.dart';
-
-// ─────────────────────────── Design tokens ────────────────────────────────
+import '../shared/theme/upheal_home_theme.dart';
+import '../shared/widgets/upheal_home_widgets.dart';
 
 const Color _jSage = Color(0xFF6B9E5E);
 const Color _jTeal = Color(0xFF4ECDC4);
-const Color _jGray = Color(0xFF6B7280);
 const Color _jGold = Color(0xFFD97706);
 
 // ─────────────────────────── Mood data ────────────────────────────────────
@@ -152,12 +150,12 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
   }
 
   Future<void> _showSuccessDialog(int xp) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
     return showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1E2535) : Colors.white,
+        backgroundColor: tokens.cardFill,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
@@ -168,10 +166,10 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
           const SizedBox(height: 16),
           Text('Journal Saved!',
             style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white : AppColors.textPrimary)),
+              color: tokens.primaryText)),
           const SizedBox(height: 8),
           Text('Great reflection. Keep it up!',
-            style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white60 : _jGray),
+            style: GoogleFonts.inter(fontSize: 14, color: tokens.secondaryText),
             textAlign: TextAlign.center),
           const SizedBox(height: 16),
           Container(
@@ -209,25 +207,24 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F1419) : const Color(0xFFFAFAF8),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF1A1F2E) : Colors.white,
+        backgroundColor: tokens.cardFill,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(LucideIcons.arrowLeft,
-            color: isDark ? Colors.white : AppColors.textPrimary),
+          icon: Icon(LucideIcons.arrowLeft, color: tokens.primaryText),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Column(children: [
           Text('Today\'s Reflection',
             style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white : AppColors.textPrimary)),
+              color: tokens.primaryText)),
           Text(_todayDate(),
-            style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white54 : _jGray)),
+            style: GoogleFonts.inter(fontSize: 12, color: tokens.secondaryText)),
         ]),
         centerTitle: true,
         actions: [
@@ -244,13 +241,14 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
           ),
         ],
       ),
-      body: ListView(
+      body: UpHealPageBackground(
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
         children: [
           // ── Mood selector ──────────────────────────────────────────
           Text('How are you feeling?',
             style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white : AppColors.textPrimary)),
+              color: tokens.primaryText)),
           const SizedBox(height: 12),
           SizedBox(
             height: 56,
@@ -270,10 +268,10 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
                     decoration: BoxDecoration(
                       color: selected
                           ? mood.color.withValues(alpha: 0.18)
-                          : (isDark ? const Color(0xFF1E2535) : Colors.white),
+                          : tokens.cardFill,
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
-                        color: selected ? mood.color : (isDark ? Colors.white12 : Colors.black12),
+                        color: selected ? mood.color : tokens.cardBorder,
                         width: selected ? 1.5 : 1,
                       ),
                       boxShadow: selected ? [BoxShadow(
@@ -288,8 +286,7 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                          color: selected ? mood.color
-                            : (isDark ? Colors.white70 : _jGray),
+                          color: selected ? mood.color : tokens.secondaryText,
                         )),
                     ]),
                   ),
@@ -301,7 +298,7 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
           const SizedBox(height: 28),
 
           // ── Questions ──────────────────────────────────────────────
-          ...List.generate(_questions.length, (i) => _buildQuestion(context, i, isDark)),
+          ...List.generate(_questions.length, (i) => _buildQuestion(context, i, tokens)),
 
           const SizedBox(height: 24),
 
@@ -332,10 +329,11 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
           ),
         ],
       ),
+      ),
     );
   }
 
-  Widget _buildQuestion(BuildContext context, int i, bool isDark) {
+  Widget _buildQuestion(BuildContext context, int i, UpHealHomeTheme tokens) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -357,7 +355,7 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
             child: Text(_questions[i],
               style: GoogleFonts.inter(
                 fontSize: 14, fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : AppColors.textPrimary, height: 1.4)),
+                color: tokens.primaryText, height: 1.4)),
           ),
         ]),
         const SizedBox(height: 10),
@@ -368,7 +366,7 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
           minLines: 3,
           style: GoogleFonts.inter(
             fontSize: 15,
-            color: isDark ? Colors.white.withValues(alpha: 0.87) : AppColors.textPrimary,
+            color: tokens.primaryText,
             height: 1.6,
           ),
           textInputAction: i < _questions.length - 1
@@ -381,9 +379,10 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
             hintText: 'Write your thoughts here…',
             hintStyle: GoogleFonts.inter(
               fontSize: 14,
-              color: isDark ? Colors.white30 : _jGray.withValues(alpha: 0.6)),
+              color: tokens.secondaryText,
+            ),
             filled: true,
-            fillColor: isDark ? const Color(0xFF1E2535) : Colors.white,
+            fillColor: tokens.cardFill,
             contentPadding: const EdgeInsets.all(16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -391,8 +390,7 @@ class _JournalingQuestionsScreenState extends State<JournalingQuestionsScreen> {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08)),
+              borderSide: BorderSide(color: tokens.cardBorder),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

@@ -10,6 +10,7 @@ import '../models/auth_model.dart';
 import '../models/theme_model.dart';
 import '../models/user_model.dart';
 import '../navigation/app_routes.dart';
+import '../navigation/navigation_helpers.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -410,7 +411,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Row(
           children: <Widget>[
             IconButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => safeGoBack(context),
               icon: Icon(
                 LucideIcons.arrowLeft,
                 color: theme.colorScheme.onSurface,

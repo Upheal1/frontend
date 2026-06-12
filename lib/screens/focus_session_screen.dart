@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../models/focus_session_model.dart';
 import '../models/hive/focus_session_history.dart';
+import '../navigation/navigation_helpers.dart';
 import '../services/focus_session_service.dart';
 import '../widgets/focus/session_timer_widget.dart';
 import '../widgets/focus/blocked_apps_selector.dart';
@@ -119,7 +120,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
             LucideIcons.arrowLeft,
             color: isDark ? Colors.white : Colors.black87,
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => safeGoBack(context),
         ),
         title: Text(
           'Focus Session',

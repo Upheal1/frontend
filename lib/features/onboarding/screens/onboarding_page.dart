@@ -16,6 +16,28 @@ class OnboardingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+    Widget hero = SizedBox(
+      height: 220,
+      child: Image.asset(
+        data.travelerImage,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => Center(
+          child: OnboardingVisual(
+            type: data.type,
+            heroTag: data.heroTag,
+            gradientColors: data.gradientColors,
+          ),
+        ),
+      ),
+    );
+    if (!reduceMotion) {
+      hero = hero
+          .animate(onPlay: (c) => c.repeat(reverse: true))
+          .moveY(begin: 0, end: -6, duration: 2400.ms, curve: Curves.easeInOut);
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -43,16 +65,12 @@ class OnboardingPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SizedBox(height: screenHeight * 0.08),
-                  OnboardingVisual(
-                    type: data.type,
-                    heroTag: data.heroTag,
-                    gradientColors: data.gradientColors,
-                  )
+                  SizedBox(height: screenHeight * 0.06),
+                  hero
                       .animate()
                       .fadeIn(duration: 600.ms, delay: 200.ms)
                       .scale(begin: const Offset(0.8, 0.8), duration: 600.ms, delay: 200.ms),
-                  SizedBox(height: screenHeight * 0.06),
+                  SizedBox(height: screenHeight * 0.04),
                   Text(
                     data.title,
                     textAlign: TextAlign.center,
@@ -81,7 +99,7 @@ class OnboardingPage extends StatelessWidget {
                       .animate()
                       .fadeIn(duration: 500.ms, delay: 550.ms)
                       .slideY(begin: 0.3, duration: 500.ms, delay: 550.ms),
-                  SizedBox(height: screenHeight * 0.08),
+                  SizedBox(height: screenHeight * 0.06),
                   _buildFeatureHints(context, data.type)
                       .animate()
                       .fadeIn(duration: 400.ms, delay: 700.ms),

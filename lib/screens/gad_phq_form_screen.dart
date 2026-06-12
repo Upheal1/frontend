@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../clinical_forms.dart';
 import '../features/community/services/community_supabase.dart';
+import '../navigation/navigation_helpers.dart';
 import '../models/screen_time_model.dart';
 import '../services/screen_time_service.dart';
 import '../services/supabase_service.dart';
@@ -154,7 +155,7 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
           Row(
             children: [
               IconButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => safeGoBack(context),
                 icon: Icon(LucideIcons.arrowLeft, color: text, size: 22),
                 style: IconButton.styleFrom(
                   backgroundColor: isDark ? Colors.white.withAlpha(15) : Colors.black.withAlpha(10),
@@ -168,7 +169,7 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
               ),
               const Spacer(),
               IconButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => safeGoBack(context),
                 icon: Icon(LucideIcons.x, color: muted, size: 20),
                 style: IconButton.styleFrom(
                   backgroundColor: isDark ? Colors.white.withAlpha(15) : Colors.black.withAlpha(10),
@@ -583,7 +584,7 @@ class _GadPhqFormScreenState extends State<GadPhqFormScreen>
           ),
         );
       } else {
-        Navigator.of(context).pop();
+        safeGoBack(context);
       }
     } on TimeoutException {
       if (!mounted) return;

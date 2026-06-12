@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 import '../models/streak_model.dart';
 import '../services/streak_service.dart';
 import '../constants/app_colors.dart';
+import '../navigation/navigation_helpers.dart';
 import '../widgets/streak/streak_calendar.dart';
 import '../widgets/streak/streak_stats_card.dart';
 import '../widgets/streak/streak_milestone_card.dart';
@@ -76,7 +77,7 @@ class _StreakScreenState extends State<StreakScreen>
             color: isDark ? Colors.white : AppColors.textPrimary,
             size: 24,
           ),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => safeGoBack(context),
           tooltip: 'Back',
         ),
         title: Text(

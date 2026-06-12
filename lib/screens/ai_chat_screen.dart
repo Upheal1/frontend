@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../constants/app_colors.dart';
+import '../navigation/navigation_helpers.dart';
 import '../services/ai_chat_service.dart';
 
 class AiChatScreen extends StatefulWidget {
@@ -104,7 +105,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
             LucideIcons.arrowLeft,
             color: isDark ? Colors.white : AppColors.textPrimary,
           ),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => safeGoBack(context),
         ),
       ),
       body: Column(

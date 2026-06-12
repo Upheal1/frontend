@@ -161,7 +161,9 @@ class _FocusRoomScreenState extends State<FocusRoomScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   tileColor: scheme.surfaceContainerHighest.withOpacity(0.35),
                   leading: CircleAvatar(
-                    child: Text(m.displayName.characters.first.toUpperCase()),
+                    backgroundImage: NetworkImage(
+                      CommunityDecor.avatarFor(m.displayName),
+                    ),
                   ),
                   title: Text(m.displayName, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                   subtitle: Text(

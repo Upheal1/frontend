@@ -212,31 +212,15 @@ class _GradientAvatar extends StatelessWidget {
             ? Image.network(
                 avatarUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _Initials(name: displayName),
+                errorBuilder: (_, __, ___) => Image.network(
+                  CommunityDecor.avatarFor(displayName),
+                  fit: BoxFit.cover,
+                ),
               )
-            : _Initials(name: displayName),
-      ),
-    );
-  }
-}
-
-class _Initials extends StatelessWidget {
-  const _Initials({required this.name});
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: CommunityDecor.lavender.withOpacity(0.14),
-      child: Center(
-        child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : '?',
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
-            color: CommunityDecor.lavender,
-          ),
-        ),
+            : Image.network(
+                CommunityDecor.avatarFor(displayName),
+                fit: BoxFit.cover,
+              ),
       ),
     );
   }

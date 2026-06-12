@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../constants/app_colors.dart';
+import '../../navigation/navigation_helpers.dart';
 import '../services/avatar_provider.dart';
 import 'avatar_widget.dart';
 
@@ -42,7 +43,7 @@ class _AvatarScreenState extends State<AvatarScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => safeGoBack(context),
         ),
         title: Text(
           'Choose Avatar',
@@ -221,7 +222,7 @@ class _AvatarScreenState extends State<AvatarScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Avatar saved')),
     );
-    Navigator.of(context).pop();
+    safeGoBack(context);
   }
 }
 

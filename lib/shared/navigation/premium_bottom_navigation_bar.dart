@@ -30,9 +30,9 @@ class PremiumBottomNavigationBar extends StatelessWidget {
     final List<AppBranchDestination> items = appBottomNavDestinations;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 16),
+      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 6),
       child: SizedBox(
-        height: 92,
+        height: 68,
         child: Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.bottomCenter,
@@ -43,7 +43,7 @@ class PremiumBottomNavigationBar extends StatelessWidget {
               bottom: 0,
               child: GlassNav(
                 child: SizedBox(
-                  height: 68,
+                  height: 48,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: <Widget>[
@@ -69,7 +69,7 @@ class PremiumBottomNavigationBar extends StatelessWidget {
                           onTap: () => onTap(1),
                         ),
                       ),
-                      const SizedBox(width: 72),
+                      const SizedBox(width: 52),
                       Expanded(
                         child: _NavTab(
                           icon: LucideIcons.map,
@@ -139,12 +139,12 @@ class _NavTab extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         child: AnimatedDefaultTextStyle(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           style: TextStyle(
-            fontSize: 10.5,
+            fontSize: 9.5,
             fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
             color: labelColor,
             letterSpacing: -0.1,
@@ -156,9 +156,9 @@ class _NavTab extends StatelessWidget {
                 scale: isActive ? 1.02 : 1,
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOutCubic,
-                child: Icon(icon, size: 20, color: iconColor),
+                child: Icon(icon, size: 18, color: iconColor),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               Text(
                 label,
                 maxLines: 1,
@@ -192,24 +192,24 @@ class _ChatbotActionButton extends StatelessWidget {
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
         child: Container(
-          width: 56,
-          height: 56,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
             color: tokens.chatFabFill,
             shape: BoxShape.circle,
-            border: Border.all(color: tokens.pageBackground, width: 4),
+            border: Border.all(color: tokens.pageBackground, width: 3),
             boxShadow: <BoxShadow>[
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
           child: Icon(
             LucideIcons.sparkles,
             color: tokens.chatFabIcon,
-            size: 20,
+            size: 16,
           ),
         ),
       ),

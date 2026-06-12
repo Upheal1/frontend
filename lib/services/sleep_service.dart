@@ -132,21 +132,40 @@ class SleepService {
     // Load completed sessions
     final sessionsJson = prefs.getString('sleep_sessions');
     if (sessionsJson != null) {
-      final sessionsList = jsonDecode(sessionsJson) as List;
-      _sessions = sessionsList.map((json) => SleepSession.fromJson(json)).toList();
+      try {
+        final sessionsList = jsonDecode(sessionsJson);
+        if (sessionsList is List) {
+          _sessions = sessionsList
+              .map((json) => json is Map<String, dynamic>
+                  ? SleepSession.fromJson(json)
+                  : null)
+              .whereType<SleepSession>()
+              .toList();
+        }
+      } catch (_) {
+        _sessions = [];
+        await prefs.remove('sleep_sessions');
+      }
     }
 
     // Load current session if exists
     final currentSessionJson = prefs.getString('current_sleep_session');
     if (currentSessionJson != null) {
-      final sessionData = jsonDecode(currentSessionJson) as Map<String, dynamic>;
-      _currentSession = SleepSession.fromJson(sessionData);
-      
-      // If session is older than 24 hours, mark as completed
-      if (_currentSession!.startTime.isBefore(
-        DateTime.now().subtract(const Duration(hours: 24)),
-      )) {
-        await endSleepTracking();
+      try {
+        final sessionData = jsonDecode(currentSessionJson);
+        if (sessionData is Map<String, dynamic>) {
+          _currentSession = SleepSession.fromJson(sessionData);
+          
+          // If session is older than 24 hours, auto-complete
+          if (_currentSession!.startTime.isBefore(
+            DateTime.now().subtract(const Duration(hours: 24)),
+          )) {
+            await endSleepTracking();
+          }
+        }
+      } catch (_) {
+        _currentSession = null;
+        await prefs.remove('current_sleep_session');
       }
     }
   }

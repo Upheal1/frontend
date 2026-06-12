@@ -14,16 +14,10 @@ import '../constants/app_colors.dart';
 import '../gamification/xp_config.dart';
 import '../services/comeback_reward_service.dart';
 import '../navigation/app_routes.dart';
-import 'journal_screen.dart';
-import 'notification_settings_screen.dart';
-import 'roadmap_screen.dart';
-import 'ai_chat_screen.dart';
-import 'insights_screen.dart';
 import '../widgets/drawer_menu_button.dart';
 import '../widgets/traveler_viewer.dart';
 import '../avatar/models/avatar_unlock_config.dart';
 import '../avatar/services/avatar_progression_provider.dart';
-import '../features/community/ui/community_hub_screen.dart';
 import '../design_system/tokens/design_tokens.dart';
 import '../shared/theme/upheal_home_theme.dart';
 import '../shared/widgets/upheal_home_widgets.dart';
@@ -163,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: _buildHomeJourneyPanel(context, user, missions),
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ),
         );
@@ -205,11 +199,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: isDark ? Colors.white : tokens.primaryText,
                     size: 20,
                   ),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const NotificationSettingsScreen(),
-                    ),
-                  ),
+                  onPressed: () =>
+                      const NotificationSettingsRoute().push(context),
                   tooltip: 'Notifications',
                 ),
               ),
@@ -848,9 +839,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? Colors.white.withValues(alpha: 0.85)
                 : tokens.quickJournalLabel,
             isDark: isDark,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const JournalScreen()),
-            ),
+            onTap: () => const JournalRoute().push(context),
           ),
         ),
         const SizedBox(width: 10),
@@ -866,9 +855,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? Colors.white.withValues(alpha: 0.85)
                 : tokens.quickCoachLabel,
             isDark: isDark,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AiChatScreen()),
-            ),
+            onTap: () => const AiChatRoute().push(context),
           ),
         ),
         const SizedBox(width: 10),
@@ -884,9 +871,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? Colors.white.withValues(alpha: 0.85)
                 : tokens.quickInsightsLabel,
             isDark: isDark,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const InsightsScreen()),
-            ),
+            onTap: () => const InsightsRoute().push(context),
           ),
         ),
         const SizedBox(width: 10),
@@ -902,9 +887,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? Colors.white.withValues(alpha: 0.85)
                 : tokens.quickGroupsLabel,
             isDark: isDark,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CommunityHubScreen()),
-            ),
+            onTap: () => const CommunityRoute().push(context),
           ),
         ),
       ],
@@ -1077,9 +1060,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final int journeyDay = _journeyDay(user);
     return InkWell(
       borderRadius: AppRadius.lg,
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const RoadmapScreen()),
-      ),
+      onTap: () => const RoadmapRoute().push(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         decoration: BoxDecoration(

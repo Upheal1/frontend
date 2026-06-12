@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/app_colors.dart';
 import '../models/achievement.dart';
+import '../navigation/navigation_helpers.dart';
 
 class AchievementsScreen extends StatefulWidget {
   final List<Achievement> achievements;
@@ -72,7 +73,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => safeGoBack(context),
         ),
       ),
       body: Column(

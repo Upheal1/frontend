@@ -376,18 +376,44 @@ class _GroupCardState extends State<_GroupCard>
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF7C6EE6), Color(0xFF4ECDC4)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: SizedBox(
+                    width: 52,
+                    height: 52,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: Image.network(
+                              CommunityDecor.groupCoverFor(widget.group.name),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Color(0xFF7C6EE6), Color(0xFF4ECDC4)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.black.withValues(alpha: 0.25),
+                                Colors.black.withValues(alpha: 0.05),
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            ),
+                          ),
+                          child: Icon(_icon, color: Colors.white, size: 22),
+                        ),
+                      ],
                     ),
-                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(_icon, color: Colors.white, size: 22),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
