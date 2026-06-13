@@ -258,20 +258,67 @@ class CommunityGroupsTab extends StatelessWidget {
     if (!repo.isConfigured) return const SizedBox.shrink();
 
     if (groups.groups.isEmpty) {
-      return const _EmptyGroupsState();
+      return RefreshIndicator(
+        color: const Color(0xFF7C6EE6),
+        onRefresh: () => groups.connect(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: const _EmptyGroupsState(),
+          ),
+        ),
+      );
     }
 
     return RefreshIndicator(
       color: const Color(0xFF7C6EE6),
       onRefresh: () => groups.connect(),
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-        itemCount: groups.groups.length,
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+        itemCount: groups.groups.length + 1,
         itemBuilder: (ctx, i) {
-          final g = groups.groups[i];
+          if (i == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Your spaces',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).upHealHome.faintText,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => groups.connect(),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .upHealHome
+                            .quickGroups
+                            .withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        LucideIcons.refreshCcw,
+                        size: 16,
+                        color: const Color(0xFF8A6CF6),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          final g = groups.groups[i - 1];
           return _GroupCard(
             group: g,
-            index: i,
+            index: i - 1,
             onTap: () => openGroup(context, g),
           );
         },
@@ -320,16 +367,7 @@ class _GroupCardState extends State<_GroupCard>
     super.dispose();
   }
 
-  IconData get _icon {
-    return switch (widget.group.groupType) {
-      CommunityGroupType.focusRoom => LucideIcons.timer,
-      CommunityGroupType.gym => LucideIcons.dumbbell,
-      CommunityGroupType.coding => LucideIcons.code2,
-      CommunityGroupType.study => LucideIcons.bookOpen,
-      CommunityGroupType.recovery => LucideIcons.heart,
-      _ => LucideIcons.messagesSquare,
-    };
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -372,19 +410,6 @@ class _GroupCardState extends State<_GroupCard>
                               ),
                             ),
                           ),
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.black.withValues(alpha: 0.25),
-                                Colors.black.withValues(alpha: 0.05),
-                              ],
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                            ),
-                          ),
-                          child: Icon(_icon, color: Colors.white, size: 22),
-                        ),
                       ],
                     ),
                   ),

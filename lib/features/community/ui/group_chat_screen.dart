@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -24,10 +25,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final _text = TextEditingController();
   final _scroll = ScrollController();
   Timer? _typingDebounce;
+  bool _sending = false;
 
   @override
   void initState() {
     super.initState();
+    _text.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final chat = context.read<GroupChatNotifier>();
       await chat.connect();
@@ -56,16 +59,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Future<void> _send(GroupChatNotifier chat) async {
     final t = _text.text.trim();
-    if (t.isEmpty) return;
-    _text.clear();
+    if (t.isEmpty || _sending) return;
+    HapticFeedback.lightImpact();
+    setState(() => _sending = true);
     await chat.onTypingChanged(false);
-    await chat.send(t);
-    if (_scroll.hasClients) {
-      unawaited(
-        _scroll.animateTo(
-          _scroll.position.maxScrollExtent + 80,
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
+
+    try {
+      await chat.send(t);
+      if (!mounted) return;
+      _text.clear();
+      setState(() => _sending = false);
+      if (_scroll.hasClients) {
+        unawaited(
+          _scroll.animateTo(
+            _scroll.position.maxScrollExtent + 120,
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOut,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Message failed to send.',
+              style: GoogleFonts.inter()),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -86,6 +106,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final typingOthers = chat.typingUserIds.keys.where((id) => id != myId).length;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,36 +237,84 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ),
           SafeArea(
             top: false,
-            child: Material(
-              elevation: 10,
-              color: scheme.surface.withOpacity(0.96),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => _pickImage(chat),
-                      icon: const Icon(LucideIcons.imagePlus),
-                    ),
-                    Expanded(
-                      child: TextField(
-                        controller: _text,
-                        onChanged: (v) => _onTextChanged(chat, v),
-                        minLines: 1,
-                        maxLines: 5,
-                        decoration: InputDecoration(
-                          hintText: 'Message ${widget.group.name}…',
-                          filled: true,
-                          fillColor: scheme.surfaceContainerHighest.withOpacity(0.4),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+            bottom: false,
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Material(
+                elevation: 10,
+                color: scheme.surface.withOpacity(0.96),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => _pickImage(chat),
+                        icon: const Icon(LucideIcons.imagePlus),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: _text,
+                          onChanged: (v) => _onTextChanged(chat, v),
+                          minLines: 1,
+                          maxLines: 5,
+                          decoration: InputDecoration(
+                            hintText: 'Message ${widget.group.name}…',
+                            filled: true,
+                            fillColor: scheme.surfaceContainerHighest.withOpacity(0.4),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
                         ),
                       ),
-                    ),
-                    IconButton.filled(
-                      onPressed: () => _send(chat),
-                      icon: const Icon(LucideIcons.send),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: (_text.text.trim().isEmpty || _sending)
+                              ? null
+                              : CommunityDecor.fabGradient,
+                          color: (_text.text.trim().isEmpty || _sending)
+                              ? (Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white.withOpacity(0.08)
+                                  : const Color(0xFFE5E7EB))
+                              : null,
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: (_text.text.trim().isEmpty || _sending)
+                                ? null
+                                : () => _send(chat),
+                            customBorder: const CircleBorder(),
+                            child: Center(
+                              child: _sending
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Icon(
+                                      LucideIcons.send,
+                                      size: 18,
+                                      color: (_text.text.trim().isEmpty)
+                                          ? (Theme.of(context).brightness == Brightness.dark
+                                              ? Colors.white38
+                                              : const Color(0xFF9CA3AF))
+                                          : Colors.white,
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -82,102 +82,119 @@ class _ComposePostScreenState extends State<ComposePostScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: BoxDecoration(
             gradient: CommunityDecor.calmBackdrop(context)),
         child: SafeArea(
-          child: Column(
-            children: [
-              // ── Top bar ─────────────────────────────────────────────────
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isDark
-                              ? Colors.white.withOpacity(0.08)
-                              : const Color(0xFFF4F5F7),
-                        ),
-                        child: Icon(
-                          LucideIcons.x,
-                          size: 18,
-                          color: isDark
-                              ? Colors.white70
-                              : const Color(0xFF374151),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'New post',
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: isDark
-                              ? Colors.white
-                              : const Color(0xFF111827),
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                    ),
-                    // Share button
-                    GestureDetector(
-                      onTap: _busy ? null : _submit,
-                      child: AnimatedOpacity(
-                        opacity: _busy ? 0.5 : 1.0,
-                        duration: const Duration(milliseconds: 200),
+            child: Column(
+              children: [
+                // ── Top bar ─────────────────────────────────────────────────
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 10),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            gradient: CommunityDecor.fabGradient,
-                            borderRadius: BorderRadius.circular(50),
-                            boxShadow: _busy
-                                ? []
-                                : [
-                                    BoxShadow(
-                                      color: CommunityDecor.lavender
-                                          .withOpacity(0.38),
-                                      blurRadius: 14,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                            shape: BoxShape.circle,
+                            color: isDark
+                                ? Colors.white.withOpacity(0.08)
+                                : const Color(0xFFF4F5F7),
                           ),
-                          child: _busy
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  'Share',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
-                                  ),
-                                ),
+                          child: Icon(
+                            LucideIcons.x,
+                            size: 18,
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF374151),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'New post',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF111827),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ),
+                      // Share button
+                      SizedBox(
+                        height: 44,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _busy ? null : _submit,
+                            borderRadius: BorderRadius.circular(50),
+                            child: AnimatedContainer(
+                              duration:
+                                  const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10),
+                              decoration: BoxDecoration(
+                                gradient: _busy
+                                    ? null
+                                    : CommunityDecor.fabGradient,
+                                color: _busy
+                                    ? (isDark
+                                        ? Colors.white
+                                            .withOpacity(0.08)
+                                        : const Color(0xFFE5E7EB))
+                                    : null,
+                                borderRadius:
+                                    BorderRadius.circular(50),
+                                boxShadow: _busy
+                                    ? []
+                                    : [
+                                        BoxShadow(
+                                          color: CommunityDecor
+                                              .lavender
+                                              .withOpacity(0.38),
+                                          blurRadius: 14,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                              ),
+                              child: _busy
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child:
+                                          CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Share',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-              // ── Scrollable body ─────────────────────────────────────────
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                // ── Scrollable body ─────────────────────────────────────────
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   children: [
                     // Author row
                     Row(

@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../models/user_model.dart';
+import '../data/community_models.dart';
 import '../services/community_repository.dart';
 import 'community_decor.dart';
 import 'compose_post_screen.dart';
@@ -62,6 +63,7 @@ class _FeedTabState extends State<FeedTab> {
   FeedCursor? _nextCursor;
   bool _loadingMore = false;
   bool _hasMore = true;
+  final Set<String> _likedPostIds = {};
 
   @override
   void initState() {
@@ -117,6 +119,7 @@ class _FeedTabState extends State<FeedTab> {
         _hasMore = page.nextCursor != null;
         _loading = false;
       });
+      await _loadLikedPostIds();
     } catch (e) {
       if (!mounted) return;
       debugPrint('[FeedTab] _loadFeed error: $e');
@@ -138,6 +141,26 @@ class _FeedTabState extends State<FeedTab> {
     }
   }
 
+  Future<void> _loadLikedPostIds() async {
+    final uid = _repo.currentUserId;
+    if (uid == null || _posts.isEmpty) return;
+    try {
+      final ids = _posts.map((p) => p['id'] as String).toList();
+      final liked = await _repo.fetchLikedPostIds(
+        userId: uid,
+        postIds: ids,
+      );
+      if (!mounted) return;
+      setState(() {
+        _likedPostIds
+          ..clear()
+          ..addAll(liked);
+      });
+    } catch (e) {
+      debugPrint('[FeedTab] _loadLikedPostIds error: $e');
+    }
+  }
+
   Future<void> _loadMore() async {
     if (!mounted || _loadingMore || !_hasMore || _nextCursor == null) return;
     setState(() => _loadingMore = true);
@@ -150,6 +173,7 @@ class _FeedTabState extends State<FeedTab> {
         _hasMore = page.nextCursor != null;
         _loadingMore = false;
       });
+      await _loadLikedPostIds();
     } catch (e) {
       if (!mounted) return;
       debugPrint('[FeedTab] _loadMore error: $e');
@@ -168,6 +192,93 @@ class _FeedTabState extends State<FeedTab> {
       );
     } catch (e) {
       debugPrint('[FeedTab] _listenForFeedUpdates error: $e');
+    }
+  }
+
+  Future<void> _toggleLike(String postId) async {
+    final uid = _repo.currentUserId;
+    if (uid == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please sign in to interact with the community.',
+                style: GoogleFonts.inter()),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    final wasLiked = _likedPostIds.contains(postId);
+    final postIdx = _posts.indexWhere((p) => p['id'] == postId);
+    if (postIdx < 0) return;
+
+    setState(() {
+      if (wasLiked) {
+        _likedPostIds.remove(postId);
+      } else {
+        _likedPostIds.add(postId);
+      }
+      final current = (_posts[postIdx]['likes_count'] as num?)?.toInt() ?? 0;
+      _posts[postIdx]['likes_count'] = wasLiked ? (current - 1).clamp(0, 999999) : current + 1;
+    });
+
+    try {
+      await _repo.toggleLike(postId);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        if (wasLiked) {
+          _likedPostIds.add(postId);
+        } else {
+          _likedPostIds.remove(postId);
+        }
+        final current = (_posts[postIdx]['likes_count'] as num?)?.toInt() ?? 0;
+        _posts[postIdx]['likes_count'] = wasLiked ? current + 1 : (current - 1).clamp(0, 999999);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not update like. Try again.',
+              style: GoogleFonts.inter()),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showCommentsSheet(String postId) async {
+    final uid = _repo.currentUserId;
+    if (uid == null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please sign in to comment.',
+              style: GoogleFonts.inter()),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final added = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CommentsSheet(
+        postId: postId,
+        repo: _repo,
+      ),
+    );
+
+    if (added == true && mounted) {
+      final postIdx = _posts.indexWhere((p) => p['id'] == postId);
+      if (postIdx >= 0) {
+        setState(() {
+          final c = (_posts[postIdx]['comments_count'] as num?)?.toInt() ?? 0;
+          _posts[postIdx]['comments_count'] = c + 1;
+        });
+      }
     }
   }
 
@@ -202,7 +313,13 @@ class _FeedTabState extends State<FeedTab> {
             const _EmptyFeedState()
           else
             for (var i = 0; i < _posts.length; i++)
-              _FeedPostCard(post: _posts[i], index: i),
+              _FeedPostCard(
+                post: _posts[i],
+                index: i,
+                liked: _likedPostIds.contains(_posts[i]['id']),
+                onLike: () => _toggleLike(_posts[i]['id'] as String),
+                onComment: () => _showCommentsSheet(_posts[i]['id'] as String),
+              ),
           if (_loadingMore)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 20),
@@ -331,10 +448,19 @@ class _SkeletonBox extends StatelessWidget {
 // ── Feed post card (inline, uses Map data from Supabase) ─────────────────────
 
 class _FeedPostCard extends StatelessWidget {
-  const _FeedPostCard({required this.post, required this.index});
+  const _FeedPostCard({
+    required this.post,
+    required this.index,
+    this.liked = false,
+    this.onLike,
+    this.onComment,
+  });
 
   final Map<String, dynamic> post;
   final int index;
+  final bool liked;
+  final VoidCallback? onLike;
+  final VoidCallback? onComment;
 
   String _timeAgo(String? createdAt) {
     if (createdAt == null) return '';
@@ -562,54 +688,91 @@ class _FeedPostCard extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                // Like count
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      LucideIcons.heart,
-                      size: 16,
-                      color: isDark
-                          ? Colors.white38
-                          : const Color(0xFF9CA3AF),
+                // Like button
+                GestureDetector(
+                  onTap: onLike,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: liked
+                          ? const Color(0xFFEC4899).withValues(alpha: 0.13)
+                          : (isDark
+                              ? Colors.white.withValues(alpha: 0.07)
+                              : const Color(0xFFF4F5F7)),
+                      borderRadius: BorderRadius.circular(999),
+                      border: liked
+                          ? Border.all(
+                              color: const Color(0xFFEC4899)
+                                  .withValues(alpha: 0.28))
+                          : null,
                     ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '$likes',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: isDark
-                            ? Colors.white54
-                            : const Color(0xFF6B7280),
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          liked ? Icons.favorite : LucideIcons.heart,
+                          size: 16,
+                          color: liked
+                              ? const Color(0xFFEC4899)
+                              : (isDark
+                                  ? Colors.white38
+                                  : const Color(0xFF9CA3AF)),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '$likes',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: liked
+                                ? const Color(0xFFEC4899)
+                                : (isDark
+                                    ? Colors.white54
+                                    : const Color(0xFF6B7280)),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-                const SizedBox(width: 16),
-                // Comment count
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      LucideIcons.messageCircle,
-                      size: 16,
+                const SizedBox(width: 8),
+                // Comment button
+                GestureDetector(
+                  onTap: onComment,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
                       color: isDark
-                          ? Colors.white38
-                          : const Color(0xFF9CA3AF),
+                          ? Colors.white.withValues(alpha: 0.07)
+                          : const Color(0xFFF4F5F7),
+                      borderRadius: BorderRadius.circular(999),
                     ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '$comments',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: isDark
-                            ? Colors.white54
-                            : const Color(0xFF6B7280),
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          LucideIcons.messageCircle,
+                          size: 16,
+                          color: isDark
+                              ? Colors.white38
+                              : const Color(0xFF9CA3AF),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '$comments',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: isDark
+                                ? Colors.white54
+                                : const Color(0xFF6B7280),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -917,6 +1080,412 @@ class _CaughtUpFooter extends StatelessWidget {
             color: AppColors.purple.withValues(alpha: 0.22),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Comments bottom sheet ─────────────────────────────────────────────────────
+
+class _CommentsSheet extends StatefulWidget {
+  const _CommentsSheet({
+    required this.postId,
+    required this.repo,
+  });
+
+  final String postId;
+  final CommunityRepository repo;
+
+  @override
+  State<_CommentsSheet> createState() => _CommentsSheetState();
+}
+
+class _CommentsSheetState extends State<_CommentsSheet> {
+  final _controller = TextEditingController();
+  final _scrollController = ScrollController();
+
+  List<CommunityComment> _comments = [];
+  bool _loading = true;
+  bool _sending = false;
+  bool _commented = false;
+  bool _hasText = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadComments();
+    _controller.addListener(() {
+      setState(() => _hasText = _controller.text.trim().isNotEmpty);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadComments() async {
+    try {
+      final comments = await widget.repo.fetchComments(widget.postId);
+      if (!mounted) return;
+      setState(() {
+        _comments = comments;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('[CommentsSheet] _loadComments error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _send() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty || text.length > 2000 || _sending) return;
+
+    final uid = widget.repo.currentUserId;
+    if (uid == null) return;
+
+    HapticFeedback.lightImpact();
+    setState(() => _sending = true);
+
+    try {
+      await widget.repo.addComment(widget.postId, text);
+      if (!mounted) return;
+      _controller.clear();
+      setState(() {
+        _hasText = false;
+        _commented = true;
+      });
+      _refreshComments();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent + 120,
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('[CommentsSheet] send error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not post. Try again.',
+                style: GoogleFonts.inter()),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _refreshComments() async {
+    try {
+      final comments = await widget.repo.fetchComments(widget.postId);
+      if (mounted) setState(() => _comments = comments);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final canSend = _hasText && !_sending && _controller.text.trim().isNotEmpty;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: FractionallySizedBox(
+        heightFactor: 0.88,
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(24),
+            ),
+          ),
+          child: Column(
+            children: [
+              // ── Drag handle ──────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 4),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.15)
+                        : const Color(0xFFE5E7EB),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              // ── Header ───────────────────────────────────────────────
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Text(
+                      'Comments',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        color:
+                            isDark ? Colors.white : const Color(0xFF111827),
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(_commented),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : const Color(0xFFF3F4F6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(LucideIcons.x,
+                            size: 18,
+                            color: isDark
+                                ? Colors.white54
+                                : const Color(0xFF6B7280)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // ── Content ───────────────────────────────────────────────
+              Expanded(
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _comments.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 32),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(LucideIcons.messageCircle,
+                                      size: 48,
+                                      color: isDark
+                                          ? Colors.white24
+                                          : const Color(0xFFD1D5DB)),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No comments yet',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF111827),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Start a supportive conversation.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      color: isDark
+                                          ? Colors.white54
+                                          : const Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _scrollController,
+                            padding:
+                                const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                            itemCount: _comments.length,
+                            itemBuilder: (_, i) {
+                              final c = _comments[i];
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.only(bottom: 12),
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? const Color(0xFF232636)
+                                            .withValues(alpha: 0.6)
+                                        : const Color(0xFFF9FAFB),
+                                    borderRadius:
+                                        BorderRadius.circular(16),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 14,
+                                            backgroundImage:
+                                                NetworkImage(
+                                              CommunityDecor.avatarFor(
+                                                  c.author
+                                                      .displayName),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              c.author.displayName,
+                                              style: GoogleFonts.inter(
+                                                fontWeight:
+                                                    FontWeight.w700,
+                                                fontSize: 13,
+                                                color: isDark
+                                                    ? Colors.white
+                                                    : const Color(
+                                                        0xFF111827),
+                                              ),
+                                              overflow:
+                                                  TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        c.body,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          height: 1.45,
+                                          color: isDark
+                                              ? Colors.white
+                                                  .withValues(alpha: 0.85)
+                                              : const Color(0xFF374151),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+              ),
+              // ── Input row ─────────────────────────────────────────────
+              Container(
+                decoration: BoxDecoration(
+                  color:
+                      isDark ? const Color(0xFF1A1A2E) : Colors.white,
+                  border: Border(
+                    top: BorderSide(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : const Color(0xFFE5E7EB),
+                    ),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(12, 8, 8, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => canSend ? _send() : null,
+                        decoration: InputDecoration(
+                          hintText:
+                              'Write a supportive comment...',
+                          hintStyle:
+                              GoogleFonts.inter(fontSize: 14),
+                          filled: true,
+                          fillColor: isDark
+                              ? const Color(0xFF232636)
+                                  .withValues(alpha: 0.6)
+                              : const Color(0xFFF3F4F6),
+                          border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding:
+                              const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                        ),
+                        style: GoogleFonts.inter(fontSize: 14),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: canSend ? _send : null,
+                          customBorder: const CircleBorder(),
+                          child: AnimatedContainer(
+                            duration:
+                                const Duration(milliseconds: 200),
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: canSend
+                                  ? const LinearGradient(
+                                      colors: [
+                                        Color(0xFF8A6CF6),
+                                        Color(0xFF14B8A6),
+                                      ],
+                                    )
+                                  : null,
+                              color: canSend
+                                  ? null
+                                  : (isDark
+                                      ? Colors.white.withValues(
+                                          alpha: 0.08)
+                                      : const Color(0xFFE5E7EB)),
+                            ),
+                            child: _sending
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child:
+                                        CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      valueColor:
+                                          AlwaysStoppedAnimation(
+                                              Colors.white),
+                                    ),
+                                  )
+                                : Icon(
+                                    LucideIcons.send,
+                                    size: 18,
+                                    color: canSend
+                                        ? Colors.white
+                                        : (isDark
+                                            ? Colors.white24
+                                            : const Color(
+                                                0xFF9CA3AF)),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

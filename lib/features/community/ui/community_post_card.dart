@@ -503,7 +503,7 @@ class _ActionRow extends StatelessWidget {
     return Row(
       children: [
         _PillAction(
-          icon: LucideIcons.heart,
+          icon: post.likedByMe ? Icons.favorite : LucideIcons.heart,
           label: '${post.likeCount}',
           active: post.likedByMe,
           activeColor: CommunityDecor.roseAccent,

@@ -10,9 +10,9 @@ class CommunityDecor {
   CommunityDecor._();
 
   // ── Demo avatars / covers ──────────────────────────────────────────────────
-  /// Returns a stable (per [key]) Pravatar URL (real human photos).
+  /// Returns a stable (per [key]) RandomUser.me portrait URL (adult men).
   static String avatarFor(String key) =>
-      'https://i.pravatar.cc/150?u=$key';
+      'https://randomuser.me/api/portraits/men/${key.hashCode.abs() % 100}.jpg';
 
   /// Returns a stable (per [key]) Picsum placeholder URL.
   static String groupCoverFor(String key) =>

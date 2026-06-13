@@ -573,6 +573,15 @@ class CommunityRepository {
     return posts;
   }
 
+  Future<Set<String>> fetchLikedPostIds({
+    required String userId,
+    required List<String> postIds,
+  }) async {
+    final client = _c;
+    if (client == null || postIds.isEmpty) return {};
+    return _postIdsWithUserRelation(client, 'post_likes', userId, postIds);
+  }
+
   Future<Set<String>> _postIdsWithUserRelation(
     SupabaseClient client,
     String table,
@@ -763,13 +772,21 @@ class CommunityRepository {
     final uid = client?.auth.currentUser?.id;
     if (client == null || uid == null) return;
 
-    await client.from('comments').insert({
-      'post_id': postId,
-      'author_id': uid,
-      'body': body,
-      if (parentId != null) 'parent_id': parentId,
-    });
-    await _logXp(uid, 'comment_created', 8);
+    final trimmed = body.trim();
+    if (trimmed.isEmpty || trimmed.length > 2000) return;
+
+    try {
+      await client.from('comments').insert({
+        'post_id': postId,
+        'author_id': uid,
+        'body': trimmed,
+        if (parentId != null) 'parent_id': parentId,
+      });
+      await _logXp(uid, 'comment_created', 8);
+    } on PostgrestException catch (e) {
+      debugPrint('[Community] addComment error: $e');
+      rethrow;
+    }
   }
 
   Stream<List<CommunityGroup>> watchGroups() {
