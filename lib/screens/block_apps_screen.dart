@@ -1,10 +1,10 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../constants/app_colors.dart';
 import '../widgets/common/skeleton_loader.dart';
 import '../widgets/drawer_menu_button.dart';
+import '../shared/theme/upheal_home_theme.dart';
+import '../shared/widgets/upheal_home_widgets.dart';
 
 class BlockAppsScreen extends StatefulWidget {
   const BlockAppsScreen({Key? key}) : super(key: key);
@@ -16,7 +16,6 @@ class BlockAppsScreen extends StatefulWidget {
 class _BlockAppsScreenState extends State<BlockAppsScreen> {
   static const platform = MethodChannel('com.appguard.native_calls');
 
-  // ── In-memory cache ──────────────────────────────────────────────────
   static List<Map<String, dynamic>>? _cachedInstalledApps;
   static Map<String, Uint8List?> _cachedAppIcons = {};
 
@@ -40,20 +39,17 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
     await _checkPermissions();
 
     if (_cachedInstalledApps != null) {
-      // Restore from cache — no native call needed
       setState(() {
         installedApps = _cachedInstalledApps!;
         appIcons = Map<String, Uint8List?>.from(_cachedAppIcons);
         isLoading = false;
       });
     } else {
-      // First load — skeleton is shown while native call runs
       await _loadInstalledApps();
     }
 
     await _loadBlockedApps();
 
-    // If cache was just populated, turn off loading
     if (_cachedInstalledApps == null && installedApps.isNotEmpty) {
       _saveToCache();
       setState(() => isLoading = false);
@@ -120,8 +116,7 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
               }),
         );
       });
-      
-      // Load app icons (awaited so cache captures them)
+
       await _loadAppIcons();
     } catch (e) {
       print('Error loading installed apps: $e');
@@ -130,7 +125,6 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
   }
 
   Future<void> _loadAppIcons() async {
-    // Load icons in batches of 15 to reduce rebuilds
     final batchSize = 15;
     for (int start = 0; start < installedApps.length; start += batchSize) {
       final end = (start + batchSize < installedApps.length)
@@ -150,7 +144,6 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
           print('Error loading icon for $packageName: $e');
         }
       }
-      // Batch-update after each group to limit setState calls
       if (mounted) setState(() {});
     }
   }
@@ -195,7 +188,6 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
           _showSuccessSnackbar('$appName is blocked');
         }
 
-        // If blocking is active, update the service
         if (isBlockingActive) {
           await _startBlockingService();
         }
@@ -266,32 +258,24 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? const Color(0xFF1B1B1B) : Colors.grey[50];
-    final primaryColor = isDark ? AppColors.purple : AppColors.teal;
-    
-    return Container(
-      color: backgroundColor,
-      child: Column(
+    final tokens = Theme.of(context).upHealHome;
+
+    return UpHealScaffold(
+      body: Column(
         children: [
-          // Custom AppBar-like header
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: primaryColor,
-            ),
-            child: SafeArea(
-              bottom: false,
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(tokens.screenPadding, 8, tokens.screenPadding, 0),
               child: Row(
                 children: [
-                  const DrawerMenuButton(iconColor: Colors.white),
-                  const SizedBox(width: 8),
+                  DrawerMenuButton(iconColor: tokens.primaryText),
+                  SizedBox(width: tokens.space12),
                   Text(
                     'Block Apps',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w700,
+                      color: tokens.primaryText,
                       fontSize: 20,
                     ),
                   ),
@@ -299,11 +283,10 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
               ),
             ),
           ),
-          // Main content
           Expanded(
             child: isLoading
                 ? Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: EdgeInsets.all(tokens.screenPadding),
                     child: ListView.builder(
                       itemCount: 8,
                       itemBuilder: (_, __) => const Padding(
@@ -335,66 +318,52 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
     );
   }
 
-  // Removed local navigation drawer to rely on the root drawer
-
   Widget _buildPermissionsCard() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF2D2D2D) : Colors.orange[50];
-    final borderColor = isDark ? Colors.orange.withOpacity(0.3) : Colors.orange.withOpacity(0.2);
-    
-    return Card(
-      margin: const EdgeInsets.all(16),
-      color: cardColor,
-      elevation: isDark ? 4 : 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: borderColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.warning, color: Colors.orange),
-                const SizedBox(width: 8),
-                Text(
-                  'Permissions Required',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange[900],
-                  ),
+    final tokens = Theme.of(context).upHealHome;
+
+    return AppCard(
+      padding: EdgeInsets.all(tokens.space16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning, color: Color(0xFFF2B55D), size: 20),
+              SizedBox(width: tokens.space8),
+              Text(
+                'Permissions Required',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: tokens.primaryText,
                 ),
-              ],
+              ),
+            ],
+          ),
+          SizedBox(height: tokens.space12),
+          if (!hasUsagePermission)
+            _buildPermissionItem(
+              'Usage Stats Permission',
+              'Required to monitor app usage',
+              _requestUsagePermission,
             ),
-            const SizedBox(height: 12),
-            if (!hasUsagePermission)
-              _buildPermissionItem(
-                'Usage Stats Permission',
-                'Required to monitor app usage',
-                _requestUsagePermission,
-              ),
-            if (!hasAccessibilityPermission)
-              _buildPermissionItem(
-                'Accessibility Permission',
-                'Required to block apps',
-                _requestAccessibilityPermission,
-              ),
-          ],
-        ),
+          if (!hasAccessibilityPermission)
+            _buildPermissionItem(
+              'Accessibility Permission',
+              'Required to block apps',
+              _requestAccessibilityPermission,
+            ),
+        ],
       ),
     );
   }
 
   Widget _buildPermissionItem(
       String title, String description, VoidCallback onPressed) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? AppColors.purple : AppColors.teal;
-    
+    final tokens = Theme.of(context).upHealHome;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(bottom: tokens.space8),
       child: Row(
         children: [
           Expanded(
@@ -403,29 +372,34 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.inter(
                     fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : Colors.black87,
+                    color: tokens.primaryText,
+                    fontSize: 14,
                   ),
                 ),
+                SizedBox(height: 2),
                 Text(
                   description,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: isDark ? Colors.white70 : Colors.grey[600],
+                    color: tokens.faintText,
                   ),
                 ),
               ],
             ),
           ),
-          ElevatedButton(
+          SizedBox(width: tokens.space12),
+          _AccentGradientButton(
             onPressed: onPressed,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              elevation: 0,
+            child: const Text(
+              'Grant',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            child: const Text('Grant'),
           ),
         ],
       ),
@@ -433,105 +407,100 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
   }
 
   Widget _buildBlockingControlCard() {
+    final tokens = Theme.of(context).upHealHome;
     final canActivate = hasUsagePermission && hasAccessibilityPermission;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF2D2D2D) : Colors.white;
-    final primaryColor = isDark ? AppColors.purple : AppColors.teal;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: cardColor,
-      elevation: isDark ? 4 : 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'App Blocking Service',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
+    return AppCard(
+      padding: EdgeInsets.all(tokens.space16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'App Blocking Service',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: tokens.primaryText,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isBlockingActive
-                        ? 'Service is running and monitoring apps'
-                        : 'Service is stopped',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: isDark ? Colors.white70 : Colors.grey[600],
-                    ),
+                ),
+                SizedBox(height: tokens.space8 / 2),
+                Text(
+                  isBlockingActive
+                      ? 'Service is running and monitoring apps'
+                      : 'Service is stopped',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: tokens.secondaryText,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Switch(
-              value: isBlockingActive,
-              onChanged: canActivate
-                  ? (value) {
-                      if (value) {
-                        _startBlockingService();
-                      } else {
-                        _stopBlockingService();
-                      }
+          ),
+          SizedBox(height: 30, child: _AccentSwitch(
+            value: isBlockingActive,
+            onChanged: canActivate
+                ? (value) {
+                    if (value) {
+                      _startBlockingService();
+                    } else {
+                      _stopBlockingService();
                     }
-                  : null,
-              activeColor: primaryColor,
-            ),
-          ],
-        ),
+                  }
+                : null,
+          )),
+        ],
       ),
     );
   }
 
   Widget _buildSearchBar() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fillColor = isDark ? const Color(0xFF2D2D2D) : Colors.grey[100];
-    final textColor = isDark ? Colors.white : Colors.black87;
-    
+    final tokens = Theme.of(context).upHealHome;
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(
+        horizontal: tokens.screenPadding,
+        vertical: tokens.space12,
+      ),
       child: TextField(
-        style: TextStyle(color: textColor),
+        style: GoogleFonts.inter(
+          color: tokens.primaryText,
+          fontSize: 14,
+        ),
         decoration: InputDecoration(
           hintText: 'Search apps...',
-          hintStyle: TextStyle(
-            color: isDark ? Colors.white54 : Colors.grey[600],
+          hintStyle: GoogleFonts.inter(
+            color: tokens.faintText,
+            fontSize: 14,
           ),
           prefixIcon: Icon(
             Icons.search,
-            color: isDark ? Colors.white70 : Colors.grey[700],
+            color: tokens.secondaryText,
+            size: 20,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? Colors.white24 : Colors.grey[300]!,
-            ),
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: tokens.cardBorder),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? Colors.white24 : Colors.grey[300]!,
-            ),
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: tokens.cardBorder),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide(
-              color: isDark ? AppColors.purple : AppColors.teal,
-              width: 2,
+              color: tokens.secondaryText,
+              width: 1.5,
             ),
           ),
           filled: true,
-          fillColor: fillColor,
+          fillColor: tokens.cardFill,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: tokens.space16,
+            vertical: tokens.space12,
+          ),
         ),
         onChanged: (value) {
           setState(() {
@@ -543,28 +512,32 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
   }
 
   Widget _buildBlockedAppsCount() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.grey[700];
-    
+    final tokens = Theme.of(context).upHealHome;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.fromLTRB(tokens.screenPadding, 0, tokens.screenPadding, tokens.space8),
       child: Row(
         children: [
           Text(
             '${blockedPackages.length} ${blockedPackages.length == 1 ? 'app' : 'apps'} blocked',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
+            style: GoogleFonts.inter(
+              fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: textColor,
+              color: tokens.secondaryText,
             ),
           ),
           if (blockedPackages.isNotEmpty) ...[
             const Spacer(),
-            TextButton(
-              onPressed: () {
-                _showClearAllDialog();
-              },
-              child: const Text('Clear All'),
+            GestureDetector(
+              onTap: _showClearAllDialog,
+              child: Text(
+                'Clear All',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFFF2B55D),
+                ),
+              ),
             ),
           ],
         ],
@@ -573,27 +546,54 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
   }
 
   void _showClearAllDialog() {
+    final tokens = Theme.of(context).upHealHome;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear All Blocked Apps?'),
-        content: const Text(
-            'This will unblock all apps. Are you sure you want to continue?'),
+        backgroundColor: tokens.cardFill,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.tileRadius),
+          side: BorderSide(color: tokens.cardBorder),
+        ),
+        title: Text(
+          'Clear All Blocked Apps?',
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.w700,
+            color: tokens.primaryText,
+          ),
+        ),
+        content: Text(
+          'This will unblock all apps. Are you sure you want to continue?',
+          style: GoogleFonts.inter(
+            color: tokens.secondaryText,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(
+                color: tokens.secondaryText,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              // Unblock all apps
               for (final packageName in blockedPackages.toList()) {
                 await _toggleAppBlock(packageName, false);
               }
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Clear All'),
+            child: Text(
+              'Clear All',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFF2B55D),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -602,8 +602,7 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
 
   Widget _buildAppsList() {
     final apps = filteredApps;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF2D2D2D) : Colors.white;
+    final tokens = Theme.of(context).upHealHome;
 
     if (apps.isEmpty) {
       return Center(
@@ -611,14 +610,20 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
           searchQuery.isEmpty
               ? 'No apps available'
               : 'No apps found matching "$searchQuery"',
-          style: GoogleFonts.poppins(
-            color: isDark ? Colors.white54 : Colors.grey[600],
+          style: GoogleFonts.inter(
+            color: tokens.faintText,
+            fontSize: 14,
           ),
         ),
       );
     }
 
     return ListView.builder(
+      padding: EdgeInsets.only(
+        left: tokens.screenPadding,
+        right: tokens.screenPadding,
+        bottom: tokens.screenPadding,
+      ),
       itemCount: apps.length,
       itemBuilder: (context, index) {
         final app = apps[index];
@@ -626,107 +631,160 @@ class _BlockAppsScreenState extends State<BlockAppsScreen> {
         final appName = app['appName'] as String;
         final isBlocked = blockedPackages.contains(packageName);
 
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          color: cardColor,
-          elevation: isDark ? 2 : 0.5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: isDark ? Colors.white10 : Colors.grey[200]!,
-            ),
+        return Container(
+          padding: EdgeInsets.symmetric(vertical: tokens.space12),
+          decoration: BoxDecoration(
+            border: index < apps.length - 1
+                ? Border(
+                    bottom: BorderSide(color: tokens.dividerColor, width: 1),
+                  )
+                : null,
           ),
-          child: ListTile(
-            leading: _buildAppIcon(packageName, isBlocked),
-            title: Text(
-              appName,
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : Colors.black87,
+          child: Row(
+            children: [
+              _buildAppIcon(packageName, isBlocked, tokens),
+              SizedBox(width: tokens.space12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      appName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: tokens.primaryText,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      packageName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: tokens.faintText,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            subtitle: Text(
-              packageName,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: isDark ? Colors.white60 : Colors.grey[600],
+              SizedBox(width: tokens.space8),
+              SizedBox(
+                height: 26,
+                child: _AccentSwitch(
+                  value: isBlocked,
+                  onChanged: (value) {
+                    _toggleAppBlock(packageName, value);
+                  },
+                ),
               ),
-            ),
-            trailing: Switch(
-              value: isBlocked,
-              onChanged: (value) {
-                _toggleAppBlock(packageName, value);
-              },
-              activeColor: Colors.red,
-            ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildAppIcon(String packageName, bool isBlocked) {
+  Widget _buildAppIcon(String packageName, bool isBlocked, UpHealHomeTheme tokens) {
     final iconData = appIcons[packageName];
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isBlocked 
-        ? Colors.red.withOpacity(0.5) 
-        : (isDark ? Colors.white24 : Colors.grey.withOpacity(0.3));
-    
+
     if (iconData != null) {
       return Container(
-        width: 48,
-        height: 48,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: borderColor,
-            width: 2,
-          ),
-          color: isDark ? const Color(0xFF1B1B1B) : Colors.white,
+          color: tokens.cardFill,
+          border: Border.all(color: tokens.cardBorder),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(11),
           child: Image.memory(
             iconData,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
-              return _buildFallbackIcon(isBlocked);
+              return _buildFallbackIcon(isBlocked, tokens);
             },
           ),
         ),
       );
     }
-    
-    return _buildFallbackIcon(isBlocked);
+
+    return _buildFallbackIcon(isBlocked, tokens);
   }
 
-  Widget _buildFallbackIcon(bool isBlocked) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? AppColors.purple : AppColors.teal;
-    final backgroundColor = isBlocked 
-        ? Colors.red.withOpacity(0.1) 
-        : primaryColor.withOpacity(0.1);
-    final borderColor = isBlocked 
-        ? Colors.red.withOpacity(0.5) 
-        : (isDark ? primaryColor.withOpacity(0.5) : primaryColor.withOpacity(0.3));
-    final iconColor = isBlocked ? Colors.red : primaryColor;
-    
+  Widget _buildFallbackIcon(bool isBlocked, UpHealHomeTheme tokens) {
     return Container(
-      width: 48,
-      height: 48,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: tokens.cardFill,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: borderColor,
-          width: 2,
-        ),
+        border: Border.all(color: tokens.cardBorder),
       ),
       child: Icon(
         isBlocked ? Icons.block : Icons.apps,
-        color: iconColor,
-        size: 24,
+        color: isBlocked ? tokens.faintText : tokens.secondaryText,
+        size: 20,
       ),
+    );
+  }
+}
+
+class _AccentGradientButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  final Widget child;
+
+  const _AccentGradientButton({
+    required this.onPressed,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: UpHealHomeTheme.sharedAccentGradient,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: DefaultTextStyle(
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _AccentSwitch extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  const _AccentSwitch({required this.value, this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Switch(
+      value: value,
+      onChanged: onChanged,
+      activeThumbColor: Colors.white,
+      activeTrackColor: const Color(0xFF8A6CF6),
+      inactiveThumbColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF7D789C)
+          : const Color(0xFF9A96B3),
+      inactiveTrackColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0x29FFFFFF)
+          : const Color(0x1A141032),
     );
   }
 }

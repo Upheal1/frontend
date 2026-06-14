@@ -5,10 +5,13 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../models/focus_session_model.dart';
 import '../models/hive/focus_session_history.dart';
-import '../navigation/navigation_helpers.dart';
 import '../services/focus_session_service.dart';
 import '../widgets/focus/session_timer_widget.dart';
 import '../widgets/focus/blocked_apps_selector.dart';
+import '../widgets/drawer_menu_button.dart';
+import '../design_system/tokens/design_tokens.dart';
+import '../shared/theme/upheal_home_theme.dart';
+import '../shared/widgets/upheal_home_widgets.dart';
 import 'premium_focus_timer_screen.dart';
 
 class FocusSessionScreen extends StatefulWidget {
@@ -36,17 +39,11 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
 
   void _startSession() {
     final state = context.read<FocusSessionState>();
-    
-    // Save blocked apps preference
     FocusSessionService.saveDefaultBlockedApps(_tempSelectedApps);
-    
-    // Start session
     state.startSession(
       type: _selectedType,
       blockedApps: _tempSelectedApps,
     );
-    
-    // Open premium full-screen timer
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -72,6 +69,9 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF1A1F26)
+            : Colors.white,
         title: Text(
           'End Session?',
           style: GoogleFonts.inter(fontWeight: FontWeight.bold),
@@ -109,99 +109,215 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1B1B1B) : const Color(0xFFF8F5FF),
-      appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF1B1B1B) : const Color(0xFFF8F5FF),
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            LucideIcons.arrowLeft,
-            color: isDark ? Colors.white : Colors.black87,
+    return Consumer<FocusSessionState>(
+      builder: (context, state, child) {
+        return UpHealScaffold(
+          body: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _buildHeader(context, isDark, tokens)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: _buildSessionCounter(state, isDark),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+                  child: Center(
+                    child: SessionTimerWidget(
+                      session: state.currentSession,
+                      status: state.status,
+                      selectedType: _selectedType,
+                      onStart: _startSession,
+                      onPause: _pauseSession,
+                      onResume: _resumeSession,
+                      onStop: _stopSession,
+                    ),
+                  ),
+                ),
+              ),
+              if (state.isIdle) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg, AppSpacing.xxl, AppSpacing.lg, 0),
+                    child: _buildSectionHeader(
+                      context,
+                      icon: LucideIcons.clock,
+                      label: 'Session Type',
+                      color: const Color(0xFF7C3AED),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+                    child: SessionTypeSelector(
+                      selectedType: _selectedType,
+                      enabled: state.isIdle,
+                      onChanged: (type) => setState(() => _selectedType = type),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+                    child: _buildBlockedAppsSection(state, isDark, tokens),
+                  ),
+                ),
+              ],
+              if (state.isActive || state.isPaused) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+                    child: _buildActiveSessionInfo(state, isDark, tokens),
+                  ),
+                ),
+              ],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg, AppSpacing.xxl, AppSpacing.lg, 0),
+                  child: _buildSectionHeader(
+                    context,
+                    icon: LucideIcons.barChart2,
+                    label: "Today's Progress",
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+                  child: _buildTodaysStats(state, isDark, tokens),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg, AppSpacing.xxl, AppSpacing.lg, 0),
+                  child: _buildSectionHeader(
+                    context,
+                    icon: LucideIcons.history,
+                    label: 'Recent Sessions',
+                    color: const Color(0xFF3B82F6),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
+                  child: _buildSessionHistoryPreview(state, isDark, tokens),
+                ),
+              ),
+            ],
           ),
-          onPressed: () => safeGoBack(context),
-        ),
-        title: Text(
-          'Focus Session',
-          style: GoogleFonts.inter(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, bool isDark, UpHealHomeTheme tokens) {
+    final topPad = MediaQuery.of(context).padding.top;
+    return Padding(
+      padding: EdgeInsets.only(
+        top: topPad + 8,
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        bottom: AppSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              DrawerMenuButton(
+                iconColor: isDark ? Colors.white : tokens.primaryText,
+              ),
+              const Spacer(),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: AppRadius.sm,
+                  color: isDark ? const Color(0xFF1C1F26) : tokens.cardFill,
+                  boxShadow: context.appShadows.soft,
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    LucideIcons.history,
+                    color: isDark ? Colors.white : tokens.primaryText,
+                    size: 20,
+                  ),
+                  onPressed: _showSessionHistory,
+                  tooltip: 'History',
+                ),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              LucideIcons.history,
-              color: isDark ? Colors.white : Colors.black87,
+          const SizedBox(height: 10),
+          Text(
+            'Focus Session',
+            style: GoogleFonts.inter(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.48,
+              color: isDark ? Colors.white : tokens.primaryText,
+              height: 1.1,
             ),
-            onPressed: _showSessionHistory,
-            tooltip: 'History',
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'Deep work without distractions',
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.45)
+                  : tokens.faintText,
+              height: 1.2,
+            ),
           ),
         ],
       ),
-      body: Consumer<FocusSessionState>(
-        builder: (context, state, child) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Session counter
-                _buildSessionCounter(state, isDark),
-                const SizedBox(height: 24),
+    );
+  }
 
-                // Timer widget
-                Center(
-                  child: SessionTimerWidget(
-                    session: state.currentSession,
-                    status: state.status,
-                    selectedType: _selectedType,
-                    onStart: _startSession,
-                    onPause: _pauseSession,
-                    onResume: _resumeSession,
-                    onStop: _stopSession,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Session type selector (only when idle)
-                if (state.isIdle) ...[
-                  SessionTypeSelector(
-                    selectedType: _selectedType,
-                    enabled: state.isIdle,
-                    onChanged: (type) => setState(() => _selectedType = type),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Blocked apps section
-                  _buildBlockedAppsSection(state, isDark),
-                  const SizedBox(height: 24),
-                ],
-
-                // Active session info
-                if (state.isActive || state.isPaused) ...[
-                  _buildActiveSessionInfo(state, isDark),
-                  const SizedBox(height: 24),
-                ],
-
-                // Today's stats
-                _buildTodaysStats(state, isDark),
-                const SizedBox(height: 24),
-
-                // Session history
-                _buildSessionHistoryPreview(state, isDark),
-              ],
-            ),
-          );
-        },
-      ),
+  Widget _buildSectionHeader(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+            color: isDark ? Colors.white : tokens.primaryText,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildSessionCounter(FocusSessionState state, bool isDark) {
     return Column(
       children: [
+        const SizedBox(height: AppSpacing.sm),
         Text(
           'Session ${state.currentSessionNumber} of ${state.totalSessionsInCycle}',
           style: GoogleFonts.inter(
@@ -219,7 +335,8 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
     ).animate().fadeIn(duration: 400.ms);
   }
 
-  Widget _buildBlockedAppsSection(FocusSessionState state, bool isDark) {
+  Widget _buildBlockedAppsSection(
+      FocusSessionState state, bool isDark, UpHealHomeTheme tokens) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -229,48 +346,71 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
             onEdit: () => setState(() => _showBlockedAppsSelector = true),
           )
         else
-          Column(
-            children: [
-              BlockedAppsSelector(
-                selectedApps: _tempSelectedApps,
-                onSelectionChanged: (apps) {
-                  setState(() {
-                    _tempSelectedApps = apps;
-                  });
-                },
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () => setState(() => _showBlockedAppsSelector = false),
-                  icon: const Icon(LucideIcons.check, size: 16),
-                  label: Text(
-                    'Done',
-                    style: GoogleFonts.inter(fontSize: 14),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: tokens.cardFill,
+              borderRadius: BorderRadius.circular(tokens.cardRadius),
+              border: Border.all(color: tokens.cardBorder),
+              boxShadow: tokens.cardShadow == null
+                  ? const <BoxShadow>[]
+                  : <BoxShadow>[tokens.cardShadow!],
+            ),
+            child: Column(
+              children: [
+                BlockedAppsSelector(
+                  selectedApps: _tempSelectedApps,
+                  onSelectionChanged: (apps) {
+                    setState(() => _tempSelectedApps = apps);
+                  },
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () =>
+                        setState(() => _showBlockedAppsSelector = false),
+                    icon: const Icon(LucideIcons.check, size: 16),
+                    label: Text(
+                      'Done',
+                      style: GoogleFonts.inter(fontSize: 14),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
       ],
     );
   }
 
-  Widget _buildActiveSessionInfo(FocusSessionState state, bool isDark) {
+  Widget _buildActiveSessionInfo(
+      FocusSessionState state, bool isDark, UpHealHomeTheme tokens) {
     if (state.currentSession == null) return const SizedBox.shrink();
 
     final session = state.currentSession!;
     final blockedCount = session.blockedApps.length;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        gradient: isDark
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF2D1B69), Color(0xFF1A1035)],
+              )
+            : null,
+        color: isDark ? null : tokens.cardFill,
+        borderRadius: AppRadius.xl,
         border: Border.all(
-          color: const Color(0xFF7C3AED).withOpacity(0.3),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.09)
+              : tokens.cardBorder,
         ),
+        boxShadow: tokens.cardShadow == null
+            ? const <BoxShadow>[]
+            : <BoxShadow>[tokens.cardShadow!],
       ),
       child: Column(
         children: [
@@ -279,12 +419,23 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7C3AED).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFA78BFA), Color(0xFF7C3AED)],
+                  ),
+                  borderRadius: AppRadius.md,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.40),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Icon(
                   state.isPaused ? LucideIcons.pause : LucideIcons.flame,
-                  color: const Color(0xFF7C3AED),
+                  color: Colors.white,
                   size: 20,
                 ),
               ),
@@ -297,8 +448,8 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                       state.isPaused ? 'Session Paused' : 'Stay Focused!',
                       style: GoogleFonts.inter(
                         fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : tokens.primaryText,
                       ),
                     ),
                     Text(
@@ -307,7 +458,9 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                           : 'No apps blocked',
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: isDark ? Colors.white54 : Colors.black54,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.60)
+                            : tokens.secondaryText,
                       ),
                     ),
                   ],
@@ -315,10 +468,11 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
               ),
               if (state.isActive)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
+                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    borderRadius: AppRadius.pill,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -350,8 +504,13 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
             ],
           ),
           if (blockedCount > 0) ...[
-            const SizedBox(height: 16),
-            const Divider(height: 1),
+            const SizedBox(height: AppSpacing.lg),
+            Divider(
+              height: 1,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.09)
+                  : tokens.dividerColor,
+            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -359,10 +518,11 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
               children: session.blockedApps.take(5).map((app) {
                 final displayName = _getAppDisplayName(app);
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: AppRadius.sm,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -392,7 +552,9 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                   '+${blockedCount - 5} more',
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    color: isDark ? Colors.white38 : Colors.black38,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.45)
+                        : tokens.faintText,
                   ),
                 ),
               ),
@@ -402,60 +564,40 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
     ).animate().fadeIn(duration: 300.ms);
   }
 
-  Widget _buildTodaysStats(FocusSessionState state, bool isDark) {
+  Widget _buildTodaysStats(
+      FocusSessionState state, bool isDark, UpHealHomeTheme tokens) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade200,
-        ),
+        color: tokens.cardFill,
+        borderRadius: BorderRadius.circular(tokens.cardRadius),
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow == null
+            ? const <BoxShadow>[]
+            : <BoxShadow>[tokens.cardShadow!],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(
-                LucideIcons.barChart2,
-                size: 18,
-                color: isDark ? Colors.white70 : Colors.black87,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Today\'s Progress',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-            ],
+          Expanded(
+            child: _buildStatItem(
+              'Sessions',
+              '${state.sessionsCompletedToday}',
+              LucideIcons.target,
+              const Color(0xFF7C3AED),
+              isDark,
+              tokens,
+            ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatItem(
-                  'Sessions',
-                  '${state.sessionsCompletedToday}',
-                  LucideIcons.target,
-                  const Color(0xFF7C3AED),
-                  isDark,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatItem(
-                  'Focus Time',
-                  state.formattedTotalFocusTime,
-                  LucideIcons.clock,
-                  const Color(0xFF10B981),
-                  isDark,
-                ),
-              ),
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatItem(
+              'Focus Time',
+              state.formattedTotalFocusTime,
+              LucideIcons.clock,
+              const Color(0xFF10B981),
+              isDark,
+              tokens,
+            ),
           ),
         ],
       ),
@@ -468,122 +610,108 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
     IconData icon,
     Color color,
     bool isDark,
+    UpHealHomeTheme tokens,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 16, color: color),
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: AppRadius.sm,
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : tokens.primaryText,
                 ),
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: isDark ? Colors.white54 : Colors.black54,
-                  ),
+              ),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.50)
+                      : tokens.faintText,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildSessionHistoryPreview(FocusSessionState state, bool isDark) {
+  Widget _buildSessionHistoryPreview(
+      FocusSessionState state, bool isDark, UpHealHomeTheme tokens) {
     final todaysSessions = state.todaysSessions.reversed.take(3).toList();
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade200,
-        ),
+        color: tokens.cardFill,
+        borderRadius: BorderRadius.circular(tokens.cardRadius),
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow == null
+            ? const <BoxShadow>[]
+            : <BoxShadow>[tokens.cardShadow!],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                LucideIcons.history,
-                size: 18,
-                color: isDark ? Colors.white70 : Colors.black87,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
+          if (state.todaysSessions.isNotEmpty)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _showSessionHistory,
                 child: Text(
-                  'Recent Sessions',
+                  'See All',
                   style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
+                    fontSize: 12,
+                    color: const Color(0xFF7C3AED),
                   ),
                 ),
               ),
-              if (state.todaysSessions.isNotEmpty)
-                TextButton(
-                  onPressed: _showSessionHistory,
-                  child: Text(
-                    'See All',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: const Color(0xFF7C3AED),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
+            ),
           if (todaysSessions.isEmpty)
             Center(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
                   children: [
                     Icon(
                       LucideIcons.clock,
                       size: 32,
-                      color: isDark ? Colors.white24 : Colors.black26,
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.24)
+                          : tokens.faintText,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'No sessions yet today',
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: isDark ? Colors.white54 : Colors.black54,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.55)
+                            : tokens.secondaryText,
                       ),
                     ),
                     Text(
                       'Start your first focus session!',
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: isDark ? Colors.white38 : Colors.black38,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.38)
+                            : tokens.faintText,
                       ),
                     ),
                   ],
@@ -591,13 +719,15 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
               ),
             )
           else
-            ...todaysSessions.map((session) => _buildSessionHistoryItem(session, isDark)),
+            ...todaysSessions
+                .map((session) => _buildSessionHistoryItem(session, isDark, tokens)),
         ],
       ),
     ).animate(delay: 300.ms).fadeIn(duration: 400.ms);
   }
 
-  Widget _buildSessionHistoryItem(FocusSessionHistory session, bool isDark) {
+  Widget _buildSessionHistoryItem(
+      FocusSessionHistory session, bool isDark, UpHealHomeTheme tokens) {
     Color typeColor;
     IconData typeIcon;
 
@@ -616,23 +746,31 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
         break;
     }
 
-    final timeStr = '${session.startTime.hour.toString().padLeft(2, '0')}:${session.startTime.minute.toString().padLeft(2, '0')}';
+    final timeStr =
+        '${session.startTime.hour.toString().padLeft(2, '0')}:${session.startTime.minute.toString().padLeft(2, '0')}';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1B1B1B) : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(10),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : tokens.cardFill,
+          borderRadius: AppRadius.md,
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.07)
+                : tokens.dividerColor,
+          ),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: typeColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
+                color: typeColor.withValues(alpha: 0.12),
+                borderRadius: AppRadius.sm,
               ),
               child: Icon(typeIcon, size: 16, color: typeColor),
             ),
@@ -646,14 +784,16 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : Colors.black87,
+                      color: isDark ? Colors.white : tokens.primaryText,
                     ),
                   ),
                   Text(
                     session.formattedDuration,
                     style: GoogleFonts.inter(
                       fontSize: 11,
-                      color: isDark ? Colors.white54 : Colors.black54,
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.50)
+                          : tokens.faintText,
                     ),
                   ),
                 ],
@@ -666,7 +806,9 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                   timeStr,
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: isDark ? Colors.white54 : Colors.black54,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.50)
+                        : tokens.faintText,
                   ),
                 ),
                 if (session.completed)
@@ -692,11 +834,12 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
   void _showSessionHistory() {
     final state = context.read<FocusSessionState>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: isDark ? const Color(0xFF1B1B1B) : Colors.white,
+      backgroundColor: isDark ? const Color(0xFF1A1F26) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -717,7 +860,9 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.white24 : Colors.grey.shade300,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.24)
+                              : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -729,7 +874,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : Colors.black87,
+                              color: isDark ? Colors.white : tokens.primaryText,
                             ),
                           ),
                           const Spacer(),
@@ -737,7 +882,9 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                             '${state.todaysSessions.length} today',
                             style: GoogleFonts.inter(
                               fontSize: 14,
-                              color: isDark ? Colors.white54 : Colors.black54,
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.55)
+                                  : tokens.faintText,
                             ),
                           ),
                         ],
@@ -745,7 +892,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                     ],
                   ),
                 ),
-                const Divider(height: 1),
+                Divider(height: 1, color: tokens.dividerColor),
                 Expanded(
                   child: state.todaysSessions.isEmpty
                       ? Center(
@@ -755,14 +902,18 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                               Icon(
                                 LucideIcons.clock,
                                 size: 48,
-                                color: isDark ? Colors.white24 : Colors.black26,
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.24)
+                                    : tokens.faintText,
                               ),
                               const SizedBox(height: 16),
                               Text(
                                 'No sessions today',
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
-                                  color: isDark ? Colors.white54 : Colors.black54,
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.55)
+                                      : tokens.secondaryText,
                                 ),
                               ),
                             ],
@@ -773,8 +924,10 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
                           padding: const EdgeInsets.all(16),
                           itemCount: state.todaysSessions.length,
                           itemBuilder: (context, index) {
-                            final session = state.todaysSessions.reversed.toList()[index];
-                            return _buildSessionHistoryItem(session, isDark);
+                            final session =
+                                state.todaysSessions.reversed.toList()[index];
+                            return _buildSessionHistoryItem(
+                                session, isDark, tokens);
                           },
                         ),
                 ),
@@ -787,7 +940,6 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> {
   }
 
   String _getAppDisplayName(String packageName) {
-    // Extract app name from package name
     final parts = packageName.split('.');
     if (parts.length >= 2) {
       return parts.last.substring(0, 1).toUpperCase() + parts.last.substring(1);

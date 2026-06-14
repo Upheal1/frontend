@@ -5,7 +5,7 @@ import 'package:provider/single_child_widget.dart';
 import 'package:upheal/screens/settings_screen.dart';
 import 'package:upheal/screens/signup_screen.dart';
 
-import '../avatar/ui/avatar_screen.dart';
+import '../screens/avatar_showcase_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/community/data/community_models.dart';
 import '../features/community/services/community_repository.dart';
@@ -469,7 +469,7 @@ class AppRouter {
                 pageBuilder: (BuildContext context, GoRouterState state) =>
                     AppRouteTransitions.buildPage<void>(
                   state: state,
-                  child: const AvatarScreen(),
+                  child: const AvatarShowcaseScreen(),
                 ),
               ),
               GoRoute(

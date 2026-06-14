@@ -272,6 +272,16 @@ class UpHealApp extends StatelessWidget {
             );
           },
         ),
+        ChangeNotifierProvider(create: (_) => MissionsModel()),
+        // Streak State with service initialization
+        ChangeNotifierProvider(create: (_) {
+          final streakState = StreakState();
+          // Initialize streak service asynchronously
+          StreakService.initialize(streakState).catchError((e) {
+            debugPrint('StreakService initialization error: $e');
+          });
+          return streakState;
+        }),
         ChangeNotifierProxyProvider<UserModel, AvatarProgressionProvider>(
           create: (_) => AvatarProgressionProvider()..load(),
           update: (_, user, prev) {
@@ -295,15 +305,16 @@ class UpHealApp extends StatelessWidget {
                 badgeProvider ?? BadgeProvider(orchestrator: orchestrator);
             final tasksCompleted = missionsModel.completedCount +
                 challengeService.completedTotalCount;
-            provider.updateFrom(
-              streakDays: userModel.streakDays,
-              tasksCompleted: tasksCompleted,
-              addictionFreeDays: userModel.streakDays,
-            );
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              provider.updateFrom(
+                streakDays: userModel.streakDays,
+                tasksCompleted: tasksCompleted,
+                addictionFreeDays: userModel.streakDays,
+              );
+            });
             return provider;
           },
         ),
-        ChangeNotifierProvider(create: (_) => MissionsModel()),
         ChangeNotifierProvider(create: (_) => ParentalControlModel()),
         ChangeNotifierProvider(create: (_) => SleepModel()),
         ChangeNotifierProvider(create: (_) {
@@ -315,15 +326,6 @@ class UpHealApp extends StatelessWidget {
           return stepState;
         }),
         ChangeNotifierProvider(create: (_) => ThemeModel()), // Theme management
-        // Streak State with service initialization
-        ChangeNotifierProvider(create: (_) {
-          final streakState = StreakState();
-          // Initialize streak service asynchronously
-          StreakService.initialize(streakState).catchError((e) {
-            debugPrint('StreakService initialization error: $e');
-          });
-          return streakState;
-        }),
         // Focus Session State with service initialization
         ChangeNotifierProvider(create: (_) {
           final focusSessionState = FocusSessionState();

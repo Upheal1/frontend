@@ -1,5 +1,13 @@
 import 'package:flutter/foundation.dart';
 
+/// Filter / sort options for the community feed.
+enum CommunityPostFilter {
+  all,
+  myPosts,
+  newest,
+  mostLiked,
+}
+
 /// Tag presets for the wellness / productivity feed.
 const List<String> kCommunityTagPresets = [
   'Focus',

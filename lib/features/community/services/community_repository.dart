@@ -1118,6 +1118,78 @@ class CommunityRepository {
     );
   }
 
+  Future<void> updatePost({
+    required String postId,
+    required String body,
+  }) async {
+    final client = _c;
+    final uid = client?.auth.currentUser?.id;
+    if (client == null || uid == null) {
+      throw StateError('Community session required');
+    }
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) throw ArgumentError('Post body cannot be empty');
+
+    await client
+        .from('posts')
+        .update({
+          'body': trimmed,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', postId)
+        .eq('author_id', uid);
+  }
+
+  Future<void> deletePost(String postId) async {
+    final client = _c;
+    final uid = client?.auth.currentUser?.id;
+    if (client == null || uid == null) {
+      throw StateError('Community session required');
+    }
+
+    await client
+        .from('posts')
+        .delete()
+        .eq('id', postId)
+        .eq('author_id', uid);
+  }
+
+  Future<void> updateComment({
+    required String commentId,
+    required String body,
+  }) async {
+    final client = _c;
+    final uid = client?.auth.currentUser?.id;
+    if (client == null || uid == null) {
+      throw StateError('Community session required');
+    }
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) throw ArgumentError('Comment body cannot be empty');
+
+    await client
+        .from('comments')
+        .update({
+          'body': trimmed,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', commentId)
+        .eq('author_id', uid);
+  }
+
+  Future<void> deleteComment(String commentId) async {
+    final client = _c;
+    final uid = client?.auth.currentUser?.id;
+    if (client == null || uid == null) {
+      throw StateError('Community session required');
+    }
+
+    await client
+        .from('comments')
+        .delete()
+        .eq('id', commentId)
+        .eq('author_id', uid);
+  }
+
   /// XP logging is **best-effort**: failures are logged but never propagate
   /// to callers.  A broken XP pipeline must not block posting, liking, or
   /// commenting.

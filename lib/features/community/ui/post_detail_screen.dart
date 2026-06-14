@@ -3,9 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../../../constants/app_colors.dart';
 import '../../../models/user_model.dart';
 import '../data/community_models.dart';
 import '../services/community_repository.dart';
+import 'community_actions.dart';
 import 'community_decor.dart';
 import 'community_post_card.dart';
 
@@ -50,6 +52,58 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return all.where((c) => c.parentId == parentId).toList();
   }
 
+  Future<void> _editComment(CommunityComment comment, CommunityRepository repo) async {
+    final edited = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EditCommentSheet(
+        currentBody: comment.body,
+        onSave: (newBody) => repo.updateComment(
+          commentId: comment.id,
+          body: newBody,
+        ),
+      ),
+    );
+    // Comments are reactive via StreamBuilder, no manual refresh needed.
+  }
+
+  Future<void> _deleteComment(CommunityComment comment, CommunityRepository repo) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete this comment?',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+        content: Text('This cannot be undone.', style: GoogleFonts.inter()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel', style: GoogleFonts.inter()),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.red),
+            child: Text('Delete', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await repo.deleteComment(comment.id);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not delete comment. Try again.',
+              style: GoogleFonts.inter()),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.red,
+        ),
+      );
+    }
+  }
+
   Widget _commentTile(
     BuildContext context,
     List<CommunityComment> all,
@@ -57,6 +111,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     int depth,
   ) {
     final scheme = Theme.of(context).colorScheme;
+    final repo = context.read<CommunityRepository>();
+    final currentUserId = repo.currentUserId;
+    final isOwner = currentUserId != null && c.authorId == currentUserId;
     final pad = 12.0 * depth;
     return Padding(
       padding: EdgeInsets.only(left: pad, bottom: 10),
@@ -82,6 +139,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (isOwner)
+                  CommentActionMenu(
+                    isOwner: true,
+                    onEdit: () => _editComment(c, repo),
+                    onDelete: () => _deleteComment(c, repo),
+                  ),
                 TextButton(
                   onPressed: () => setState(() => _replyTo = c),
                   child: Text('Reply', style: GoogleFonts.inter(fontSize: 12)),

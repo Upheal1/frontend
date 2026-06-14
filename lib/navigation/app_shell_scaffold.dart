@@ -19,7 +19,7 @@ import '../services/threat_monitor_service.dart';
 import '../services/vpn_controller.dart';
 import '../use_cases/evaluate_blocking_use_case.dart';
 import '../viewmodels/blocked_app_view_model.dart';
-import '../widgets/theme_toggle.dart';
+
 import 'app_routes.dart';
 
 class AppShellScaffold extends StatefulWidget {
@@ -462,17 +462,7 @@ class _ShellNavigationPanel extends StatelessWidget {
               ),
             ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                responsive.space(AppSpacing.lg),
-                responsive.space(AppSpacing.md),
-                responsive.space(AppSpacing.lg),
-                responsive.space(AppSpacing.sm),
-              ),
-              child: const ThemeToggle(),
-            ),
-          ),
+
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(

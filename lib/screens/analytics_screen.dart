@@ -1,34 +1,36 @@
 import 'dart:ui';
-import 'dart:math';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/screen_time_service.dart';
 import '../services/onboarding_service.dart';
-import '../main.dart';
 import '../services/error_handler_service.dart';
-import '../services/export_service.dart';
 import '../widgets/common/loading_overlay.dart';
 import '../widgets/common/skeleton_loader.dart';
 import '../widgets/common/empty_state_widget.dart';
 import '../widgets/analytics/offline_indicator.dart';
 import '../widgets/analytics/export_bottom_sheet.dart';
 import '../widgets/analytics/limited_functionality_banner.dart';
+import '../widgets/analytics/wellness_hero_card.dart';
+import '../widgets/analytics/quick_stats_row.dart';
+import '../widgets/analytics/screen_limit_meter.dart';
+import '../widgets/analytics/usage_trend_chart.dart';
+import '../widgets/analytics/app_usage_breakdown.dart';
+import '../widgets/analytics/most_used_apps_list.dart';
+import '../widgets/analytics/ai_insights_list.dart';
 import 'onboarding/analytics_permission_onboarding.dart';
 import '../widgets/drawer_menu_button.dart';
 import 'comparison_screen.dart';
 import '../navigation/app_routes.dart';
 import '../models/insight_model.dart';
 import '../services/insights_service.dart';
-import '../widgets/insights/insight_card.dart';
-import '../widgets/analytics/digital_balance_hero.dart';
-import '../widgets/analytics/healthy_limits_card.dart';
+import '../models/dashboard_data.dart';
+import '../design_system/tokens/design_tokens.dart';
+import '../shared/theme/upheal_home_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -37,28 +39,31 @@ class AnalyticsScreen extends StatefulWidget {
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
 }
 
-class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingObserver {
+class _AnalyticsScreenState extends State<AnalyticsScreen>
+    with WidgetsBindingObserver {
   static const platform = MethodChannel('com.appguard.native_calls');
-  
+
   bool _hasPermission = false;
   bool _isLoading = false;
-  bool _hasCompletedOnboarding = true; // Assume completed until checked
+  bool _hasCompletedOnboarding = true;
   bool _showLimitedBanner = false;
-  bool _pendingPermissionCheck = false; // Track if we need to recheck after resume
+  bool _pendingPermissionCheck = false;
   List<Map<String, dynamic>> usageData = [];
-  int totalScreenTime = 0;
-  String _selectedTimePeriod = 'daily'; // 'daily', 'yesterday', 'weekly', 'monthly', '3months', '6months', '1year'
-  
-  // Insights preview
+  String _selectedTimePeriod = 'daily';
+
   List<Insight> _previewInsights = [];
   InsightsSummary? _insightsSummary;
-  
-  // GlobalKeys for charts (for export)
+
   final _weeklyChartKey = GlobalKey();
-  
-  // Blocked apps and time limits
+
   Set<String> blockedPackages = {};
-  Map<String, int> appTimeLimits = {}; // packageName -> minutes
+  Map<String, int> appTimeLimits = {};
+
+  DashboardData get _dashboardData => DashboardData(
+        usageData: usageData,
+        focusScore: _calculateFocusScore(),
+        blockedCount: blockedPackages.length,
+      );
 
   @override
   void initState() {
@@ -80,7 +85,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Re-check permission when app resumes from settings
     if (state == AppLifecycleState.resumed && _pendingPermissionCheck) {
       _pendingPermissionCheck = false;
       _checkPermission();
@@ -88,34 +92,24 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
   }
 
   Future<void> _checkOnboardingAndPermission() async {
-    // First check if onboarding has been completed
-    final hasCompletedOnboarding = await OnboardingService.hasCompletedAnalyticsOnboarding();
-    
+    final hasCompletedOnboarding =
+        await OnboardingService.hasCompletedAnalyticsOnboarding();
     if (mounted) {
-      setState(() {
-        _hasCompletedOnboarding = hasCompletedOnboarding;
-      });
+      setState(() => _hasCompletedOnboarding = hasCompletedOnboarding);
     }
-    
     if (!hasCompletedOnboarding) {
-      // Show onboarding flow
       _showOnboardingFlow();
     } else {
-      // Check permission directly
       await _checkPermission();
     }
   }
 
   Future<void> _showOnboardingFlow() async {
     if (!mounted) return;
-    
     final result = await AnalyticsOnboardingDialog.show(context);
-    
     if (result == true) {
-      // User completed onboarding and wants to grant permission
       await _requestPermission();
     } else {
-      // User skipped onboarding
       await OnboardingService.markAnalyticsOnboardingComplete();
       setState(() {
         _hasCompletedOnboarding = true;
@@ -129,17 +123,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
     final errors = context.read<ErrorHandlerModel>();
     try {
       errors.showLoading('Checking permission...');
-      final hasPermission = await ScreenTimeService.checkUsageStatsPermission();
+      final hasPermission =
+          await ScreenTimeService.checkUsageStatsPermission();
       if (!mounted) return;
       setState(() {
         _hasPermission = hasPermission;
-        // Show limited banner if no permission and onboarding is complete
         _showLimitedBanner = !hasPermission && _hasCompletedOnboarding;
       });
       if (hasPermission) {
-        setState(() {
-          _showLimitedBanner = false;
-        });
+        setState(() => _showLimitedBanner = false);
         await _loadUsageStats(showSpinner: false);
       }
     } catch (e) {
@@ -160,7 +152,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
     final errors = context.read<ErrorHandlerModel>();
     errors.showLoading('Opening settings...');
     try {
-      // Set flag to recheck permission when app resumes
       _pendingPermissionCheck = true;
       await ScreenTimeService.requestUsageStatsPermission();
       errors.showSuccess('Usage access requested');
@@ -178,58 +169,24 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
     try {
       if (showSpinner) {
         errors.showLoading('Loading screen time...');
-        if (mounted) {
-          setState(() {
-            _isLoading = true;
-          });
-        }
+        if (mounted) setState(() => _isLoading = true);
       }
-
-      // Note: Period selection is handled by the service internally
 
       List<Map<String, dynamic>> realUsageStats;
       if (_selectedTimePeriod == 'weekly') {
         realUsageStats = await ScreenTimeService.getBetterWeeklyUsage();
       } else {
-        realUsageStats = await ScreenTimeService.getUltraAccurateUsageStats(period: _selectedTimePeriod);
+        realUsageStats = await ScreenTimeService.getUltraAccurateUsageStats(
+            period: _selectedTimePeriod);
       }
-      
-      // Debug: Print detailed information about the data
-      print('=== USAGE STATS DEBUG ===');
-      print('Total apps found: ${realUsageStats.length}');
-      
-      if (realUsageStats.isNotEmpty) {
-        print('Sample usage data: ${realUsageStats.first}');
-        
-        // Show top 5 apps with their raw data
-        final sortedStats = List.from(realUsageStats)
-          ..sort((a, b) => (b['usageTime'] as int).compareTo(a['usageTime'] as int));
-        
-        print('Top 5 apps by usage:');
-        for (int i = 0; i < 5 && i < sortedStats.length; i++) {
-          final app = sortedStats[i];
-          final rawTime = app['usageTime'] as int;
-          final timeInSeconds = rawTime ~/ 1000;
-          final timeInMinutes = timeInSeconds ~/ 60;
-          final timeInHours = timeInMinutes ~/ 60;
-          
-          print('${i + 1}. ${app['appName']}: $rawTime ms = $timeInSeconds sec = $timeInMinutes min = $timeInHours hours');
-        }
-      }
-      
+
       if (mounted) {
         setState(() {
-          usageData = realUsageStats.where((d) => d['usageTime'] > 0).toList()
-            ..sort((a, b) => (b['usageTime'] as int).compareTo(a['usageTime'] as int));
-          // Convert milliseconds to seconds for display
-          totalScreenTime = realUsageStats.fold(0, (sum, item) => sum + ((item['usageTime'] as int) ~/ 1000));
-          
-          // Debug: Print the calculated total time
-          print('=== CALCULATED TOTALS ===');
-          print('Total screen time (seconds): $totalScreenTime');
-          print('Total screen time (minutes): ${totalScreenTime / 60}');
-          print('Total screen time (hours): ${totalScreenTime / 3600}');
-          print('Apps with usage: ${usageData.length}');
+          usageData = realUsageStats
+              .where((d) => d['usageTime'] > 0)
+              .toList()
+            ..sort((a, b) =>
+                (b['usageTime'] as int).compareTo(a['usageTime'] as int));
         });
       }
     } catch (e) {
@@ -237,13 +194,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
     } finally {
       if (showSpinner) {
         errors.hideLoading();
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+        if (mounted) setState(() => _isLoading = false);
       }
-      // Load insights preview after usage data is loaded
       _loadInsightsPreview();
     }
   }
@@ -255,7 +207,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
         usageData: usageData,
         weeklyTrend: weeklyTrend,
       );
-      
       if (mounted) {
         setState(() {
           _previewInsights = insights.take(3).toList();
@@ -292,71 +243,44 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
           title: Text(
             'Enable Usage Access',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+                fontWeight: FontWeight.bold, color: Colors.white),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'To view real screen time data, please:',
-                style: GoogleFonts.inter(
-                  color: Colors.white.withOpacity(0.7),
-                ),
-              ),
+              Text('To view real screen time data, please:',
+                  style: GoogleFonts.inter(
+                      color: Colors.white.withValues(alpha: 0.7))),
               const SizedBox(height: 12),
-              Text(
-                '1. Tap "Open Settings" below',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text('1. Tap "Open Settings" below',
+                  style: GoogleFonts.inter(
+                      color: Colors.white, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text('2. Look for "my_app" in the list',
+                  style: GoogleFonts.inter(
+                      color: Colors.white, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Text(
-                '2. Look for "my_app" in the list',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+                  '3. If you don\'t see "my_app", scroll down or search',
+                  style: GoogleFonts.inter(
+                      color: Colors.orange, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              Text(
-                '3. If you don\'t see "my_app", scroll down or search',
-                style: GoogleFonts.inter(
-                  color: Colors.orange,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text('4. Toggle "Permit usage access" ON',
+                  style: GoogleFonts.inter(
+                      color: Colors.white, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              Text(
-                '4. Toggle "Permit usage access" ON',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '5. Return to the app',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text('5. Return to the app',
+                  style: GoogleFonts.inter(
+                      color: Colors.white, fontWeight: FontWeight.w600)),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.inter(
-                  color: Colors.white.withOpacity(0.7),
-                ),
-              ),
+              child: Text('Cancel',
+                  style: GoogleFonts.inter(
+                      color: Colors.white.withValues(alpha: 0.7))),
             ),
             ElevatedButton(
               onPressed: () {
@@ -366,16 +290,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF7C3AED),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                    borderRadius: BorderRadius.circular(8)),
               ),
-              child: Text(
-                'Open Settings',
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
+              child: Text('Open Settings',
+                  style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600, color: Colors.white)),
             ),
           ],
         );
@@ -384,7 +303,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
   }
 
   void _openUsageStatsSettings() {
-    // Set flag to recheck permission when app resumes
     _pendingPermissionCheck = true;
     ScreenTimeService.requestUsageStatsPermission();
   }
@@ -393,50 +311,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
   Widget build(BuildContext context) {
     final handler = context.watch<ErrorHandlerModel>();
     final isBusy = handler.isLoading || _isLoading;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? const Color(0xFF111318) : const Color(0xFFFFFFFF);
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final cardColor = isDark ? const Color(0xFF1A1F26) : Colors.white;
+    final tokens = Theme.of(context).upHealHome;
 
     return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: backgroundColor,
-        elevation: 0,
-        leading: const DrawerMenuButton(iconColor: Colors.white),
-        title: Text(
-          'Screen Time Analytics',
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            onPressed: _navigateToInsights,
-            icon: Icon(LucideIcons.sparkles, color: textColor),
-            tooltip: 'AI Insights',
-          ),
-          IconButton(
-            onPressed: _navigateToComparison,
-            icon: Icon(LucideIcons.gitCompare, color: textColor),
-            tooltip: 'Compare Trends',
-          ),
-          IconButton(
-            onPressed: () async {
-              await _loadUsageStats();
-            },
-            icon: Icon(LucideIcons.refreshCw, color: textColor),
-            tooltip: 'Refresh Data',
-          ),
-          IconButton(
-            onPressed: _showExportOptions,
-            icon: Icon(LucideIcons.share2, color: textColor),
-            tooltip: 'Export & Share',
-          ),
-        ],
-      ),
+      backgroundColor: tokens.pageBackground,
       body: Column(
         children: [
           OfflineIndicator(
@@ -489,17 +367,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         child: Column(
           children: [
-            // Show limited functionality banner if onboarding was completed but permission denied
             if (_showLimitedBanner)
               LimitedFunctionalityBanner(
                 onEnablePressed: _showOnboardingFlow,
-                onDismiss: () {
-                  setState(() {
-                    _showLimitedBanner = false;
-                  });
-                },
+                onDismiss: () => setState(() => _showLimitedBanner = false),
               ),
             if (_showLimitedBanner) const SizedBox(height: 16),
+            _buildHeader(context),
+            const SizedBox(height: 20),
             _buildTimePeriodSelector(),
             const SizedBox(height: 20),
             _buildDebugInfo(),
@@ -517,7 +392,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
           child: EmptyStateWidget(
             iconData: LucideIcons.barChart3,
             title: 'No screen time data yet',
-            subtitle: 'Use your device for a bit or refresh to pull today\'s stats.',
+            subtitle:
+                'Use your device for a bit or refresh to pull today\'s stats.',
             actionText: 'Refresh',
             onAction: _onRefresh,
           ),
@@ -525,268 +401,245 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
       );
     }
 
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-      child: Column(
-        children: [
-          _buildTimePeriodSelector(),
-          const SizedBox(height: 20),
-          DigitalBalanceHero(
-            totalSeconds: totalScreenTime,
-            focusScore: _calculateFocusScore(),
-            appCount: usageData.length,
-            blockedCount: blockedPackages.length,
-            periodLabel: _timePeriodLabel,
+    final data = _dashboardData;
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(child: _buildHeader(context)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: _buildTimePeriodSelector(),
           ),
-          const SizedBox(height: 20),
-          HealthyLimitsCard(
-            totalSeconds: totalScreenTime,
-            totalAppCount: usageData.length,
-            blockedCount: blockedPackages.length,
-            focusScore: _calculateFocusScore(),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+            child: WellnessHeroCard(data: data),
           ),
-          const SizedBox(height: 20),
-          _buildUsageChart(),
-          const SizedBox(height: 20),
-          _buildAppUsageBarChart(),
-          const SizedBox(height: 20),
-          _buildTopApps(),
-          const SizedBox(height: 20),
-          _buildInsightsPreviewCard(),
-        ],
-      ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0),
+            child: QuickStatsRow(data: data),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0),
+            child: ScreenLimitMeter(data: data),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+            child: _buildSectionHeader(
+              context,
+              icon: LucideIcons.lineChart,
+              label: 'Usage Trend',
+              color: const Color(0xFF7C3AED),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+            child: _buildUsageChart(),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+            child: _buildSectionHeader(
+              context,
+              icon: LucideIcons.barChart,
+              label: 'App Usage Breakdown',
+              color: const Color(0xFF5B7CFA),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+            child: AppUsageBreakdown(data: data),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+            child: _buildSectionHeader(
+              context,
+              icon: LucideIcons.smartphone,
+              label: 'Most Used Apps',
+              color: const Color(0xFFF97316),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+            child: MostUsedAppsList(
+              data: data,
+              blockedPackages: blockedPackages,
+              appTimeLimits: appTimeLimits,
+              onAppOptions: _showAppOptionsDialog,
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+            child: _buildSectionHeader(
+              context,
+              icon: LucideIcons.sparkles,
+              label: 'AI Insights',
+              color: const Color(0xFF10B981),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
+            child: AiInsightsList(
+              insights: _previewInsights,
+              summary: _insightsSummary,
+              onViewAll: _navigateToInsights,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   String get _timePeriodLabel {
     switch (_selectedTimePeriod) {
-      case 'yesterday': return 'Yesterday';
-      case 'weekly': return 'This Week';
-      case 'monthly': return 'This Month';
-      case '3months': return 'Last 3 Months';
-      case '6months': return 'Last 6 Months';
-      case '1year': return 'Last Year';
-      default: return 'Today';
+      case 'yesterday':
+        return 'Yesterday';
+      case 'weekly':
+        return 'This Week';
+      case 'monthly':
+        return 'This Month';
+      default:
+        return 'Today';
     }
   }
 
-  Widget _buildInsightsPreviewCard() {
-    if (_insightsSummary == null && _previewInsights.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
+  Widget _buildHeader(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF7C3AED).withOpacity(0.15),
-            const Color(0xFF2563EB).withOpacity(0.1),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(
-          color: const Color(0xFF7C3AED).withOpacity(0.3),
-          width: 1,
-        ),
+    final tokens = Theme.of(context).upHealHome;
+    final topPad = MediaQuery.of(context).padding.top;
+    return Padding(
+      padding: EdgeInsets.only(
+        top: topPad + 8,
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        bottom: AppSpacing.md,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with score
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF7C3AED).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  LucideIcons.sparkles,
-                  color: Color(0xFF7C3AED),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AI Insights',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                    if (_insightsSummary != null)
-                      Text(
-                        'Wellness Score: ${_insightsSummary!.overallHealthScore.toStringAsFixed(0)}/100',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: _insightsSummary!.healthColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              // View All button
-              TextButton.icon(
-                onPressed: _navigateToInsights,
-                style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED).withOpacity(0.2),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-                icon: Icon(
-                  LucideIcons.arrowRight,
-                  size: 14,
-                  color: textColor,
-                ),
-                label: Text(
-                  'View All',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                  ),
-                ),
+              DrawerMenuButton(
+                iconColor: isDark ? Colors.white : tokens.primaryText,
               ),
             ],
           ),
-          
-          // Preview insights
-          if (_previewInsights.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            ..._previewInsights.map((insight) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _buildInsightPreviewItem(insight),
-            )),
-          ],
-          
-          // Summary stats
-          if (_insightsSummary != null) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _buildInsightStatChip(
-                  '${_insightsSummary!.positiveCount} positive',
-                  const Color(0xFF4CAF50),
-                ),
-                const SizedBox(width: 8),
-                _buildInsightStatChip(
-                  '${_insightsSummary!.warningCount} warnings',
-                  const Color(0xFFFF9800),
-                ),
-              ],
+          const SizedBox(height: 10),
+          Text(
+            'Screen Time Analytics',
+            style: GoogleFonts.inter(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.48,
+              color: isDark ? Colors.white : tokens.primaryText,
+              height: 1.1,
             ),
-          ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            _timePeriodLabel,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.45)
+                  : tokens.faintText,
+              height: 1.2,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInsightPreviewItem(Insight insight) {
+  Widget _buildHeaderAction(IconData icon, String tooltip,
+      VoidCallback onTap, bool isDark, UpHealHomeTheme tokens) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: AppRadius.sm,
+        color: isDark ? const Color(0xFF1C1F26) : tokens.cardFill,
+        boxShadow: context.appShadows.soft,
+      ),
+      child: IconButton(
+        icon: Icon(icon,
+            color: isDark ? Colors.white : tokens.primaryText, size: 18),
+        onPressed: onTap,
+        tooltip: tooltip,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+        padding: EdgeInsets.zero,
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final subtextColor = isDark ? Colors.grey[400]! : const Color(0xFF64748B);
-    final bgColor = isDark ? Colors.black.withOpacity(0.2) : Colors.grey.shade100;
-    
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: insight.categoryColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              insight.icon,
-              color: insight.categoryColor,
-              size: 16,
-            ),
+    final tokens = Theme.of(context).upHealHome;
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
+            color: isDark ? Colors.white : tokens.primaryText,
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  insight.title,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  insight.description,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: subtextColor,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInsightStatChip(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: color,
         ),
-      ),
+      ],
     );
   }
 
   Widget _buildTimePeriodSelector() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF1A1F26) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF2A2F36) : Colors.grey.shade200;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    
+    final tokens = Theme.of(context).upHealHome;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: cardColor,
-        border: Border.all(color: borderColor),
+        color: tokens.cardFill,
+        borderRadius: BorderRadius.circular(tokens.cardRadius),
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow == null
+            ? const <BoxShadow>[]
+            : <BoxShadow>[tokens.cardShadow!],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,111 +651,72 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
                 'Time Period',
                 style: GoogleFonts.inter(
                   fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: const Color(0xFF7C3AED).withOpacity(0.2),
-                  border: Border.all(
-                    color: const Color(0xFF7C3AED),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      LucideIcons.clock,
-                      color: Color(0xFF7C3AED),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _formatTime(totalScreenTime),
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                  ],
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : tokens.primaryText,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildTimePeriodButton('Today', 'daily', LucideIcons.calendar),
-                const SizedBox(width: 8),
-                _buildTimePeriodButton('Yesterday', 'yesterday', LucideIcons.calendar),
-                const SizedBox(width: 8),
-                _buildTimePeriodButton('Weekly', 'weekly', LucideIcons.calendarDays),
-                const SizedBox(width: 8),
-                _buildTimePeriodButton('Monthly', 'monthly', LucideIcons.calendarRange),
-                const SizedBox(width: 8),
-                _buildTimePeriodButton('3 Months', '3months', LucideIcons.calendar),
-                const SizedBox(width: 8),
-                _buildTimePeriodButton('6 Months', '6months', LucideIcons.calendar),
-                const SizedBox(width: 8),
-                _buildTimePeriodButton('1 Year', '1year', LucideIcons.calendar),
-              ],
-            ),
+          Row(
+            children: [
+              _buildTimeTab('Today', 'daily'),
+              const SizedBox(width: AppSpacing.sm),
+              _buildTimeTab('Yesterday', 'yesterday'),
+              const SizedBox(width: AppSpacing.sm),
+              _buildTimeTab('Weekly', 'weekly'),
+              const SizedBox(width: AppSpacing.sm),
+              _buildTimeTab('Monthly', 'monthly'),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTimePeriodButton(String label, String value, IconData icon) {
+  Widget _buildTimeTab(String label, String value) {
     final isSelected = _selectedTimePeriod == value;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final unselectedBg = isDark ? const Color(0xFF2A2F36) : Colors.grey.shade100;
-    final unselectedBorder = isDark ? const Color(0xFF3A3F46) : Colors.grey.shade300;
-    final unselectedText = isDark ? Colors.grey.shade400 : const Color(0xFF475569);
-    
-    return GestureDetector(
-      onTap: () async {
-        setState(() {
-          _selectedTimePeriod = value;
-        });
-        // Force fresh data for new period
-        ScreenTimeService.invalidateCaches();
-        await _loadUsageStats();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: isSelected ? const Color(0xFF7C3AED) : unselectedBg,
-          border: Border.all(
-            color: isSelected ? const Color(0xFF7C3AED) : unselectedBorder,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 14,
-              color: isSelected ? Colors.white : unselectedText,
+    final tokens = Theme.of(context).upHealHome;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () async {
+          setState(() => _selectedTimePeriod = value);
+          ScreenTimeService.invalidateCaches();
+          await _loadUsageStats();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.sm,
+            color: isSelected
+                ? tokens.accentGradient.colors.first
+                : (isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.grey.shade100),
+            border: Border.all(
+              color: isSelected
+                  ? tokens.accentGradient.colors.first
+                  : (isDark
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : Colors.grey.shade300),
             ),
-            const SizedBox(width: 4),
-            Text(
+          ),
+          child: Center(
+            child: Text(
               label,
               style: GoogleFonts.inter(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : unselectedText,
+                color: isSelected
+                    ? Colors.white
+                    : (isDark
+                        ? Colors.white.withValues(alpha: 0.72)
+                        : const Color(0xFF475569)),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -911,7 +725,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
   Widget _buildDebugInfo() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -926,58 +740,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
             children: [
               const Icon(LucideIcons.info, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
-              Text(
-                'Usage Data Debug Info',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange,
-                ),
-              ),
+              Text('Usage Data Debug Info',
+                  style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange)),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            'Permission Status: ${_hasPermission ? "Granted" : "Not Granted"}',
-            style: GoogleFonts.inter(fontSize: 12, color: textColor),
-          ),
-          Text(
-            'Data Count: ${usageData.length} apps',
-            style: GoogleFonts.inter(fontSize: 12, color: textColor),
-          ),
-          Text(
-            'Total Time: ${_formatTime(totalScreenTime)}',
-            style: GoogleFonts.inter(fontSize: 12, color: textColor),
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                final realStats = await ScreenTimeService.getUltraAccurateUsageStats(period: _selectedTimePeriod);
-                final totalTimeMs = realStats.fold(0, (sum, item) => sum + (item['usageTime'] as int));
-                final totalTimeHours = totalTimeMs / (1000 * 60 * 60);
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Found ${realStats.length} apps. Total time: ${totalTimeHours.toStringAsFixed(2)} hours'),
-                    duration: const Duration(seconds: 5),
-                  ),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Validation failed: $e')),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              minimumSize: const Size(double.infinity, 32),
-            ),
-            child: Text(
-              'Validate Data Accuracy',
-              style: GoogleFonts.inter(fontSize: 12, color: Colors.white),
-            ),
-          ),
+              'Permission Status: ${_hasPermission ? "Granted" : "Not Granted"}',
+              style: GoogleFonts.inter(fontSize: 12, color: textColor)),
+          Text('Data Count: ${usageData.length} apps',
+              style: GoogleFonts.inter(fontSize: 12, color: textColor)),
+          Text('Total Time: ${_dashboardData.formattedTotal}',
+              style: GoogleFonts.inter(fontSize: 12, color: textColor)),
         ],
       ),
     );
@@ -986,7 +763,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
   Widget _buildPermissionRequestCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -999,10 +776,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
             Colors.orange.withOpacity(0.1),
           ],
         ),
-        border: Border.all(
-          color: Colors.orange.withOpacity(0.3),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -1017,29 +791,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
                   borderRadius: BorderRadius.circular(40),
                   color: Colors.orange.withOpacity(0.2),
                 ),
-                child: const Icon(
-                  LucideIcons.shield,
-                  color: Colors.orange,
-                  size: 40,
-                ),
+                child: const Icon(LucideIcons.shield,
+                    color: Colors.orange, size: 40),
               ),
               const SizedBox(height: 16),
-              Text(
-                'Enable Usage Access',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
+              Text('Enable Usage Access',
+                  style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: textColor)),
               const SizedBox(height: 8),
               Text(
                 'To view real screen time data, please enable usage access permission.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: textColor.withOpacity(0.7),
-                ),
+                    fontSize: 14, color: textColor.withOpacity(0.7)),
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -1047,116 +813,29 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
                 height: 50,
                 child: ElevatedButton.icon(
                   onPressed: _isLoading ? null : _requestPermission,
-                  icon: _isLoading 
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Icon(LucideIcons.shield),
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(LucideIcons.shield),
                   label: Text(
                     _isLoading ? 'Requesting...' : 'Enable Usage Access',
                     style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,  // Keep white for button
-                    ),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFocusScoreCard() {
-    final focusScore = _calculateFocusScore();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final progressBgColor = isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200;
-    
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withOpacity(isDark ? 0.1 : 0.05),
-            Colors.white.withOpacity(isDark ? 0.05 : 0.02),
-          ],
-        ),
-        border: Border.all(
-          color: Colors.white.withOpacity(isDark ? 0.2 : 0.1),
-          width: 1,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Icon(LucideIcons.target, color: textColor, size: 24),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Focus Score',
-                    style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: 120,
-                height: 120,
-                child: Stack(
-                  children: [
-                    CircularProgressIndicator(
-                      value: focusScore / 100,
-                      strokeWidth: 8,
-                      backgroundColor: progressBgColor,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        _getScoreColor(focusScore),
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        '$focusScore',
-                        style: GoogleFonts.inter(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _getScoreMessage(focusScore),
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  color: textColor.withOpacity(0.7),
                 ),
               ),
             ],
@@ -1167,26 +846,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
   }
 
   Widget _buildUsageChart() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF1A1F26) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF2A2F36) : Colors.grey.shade200;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final iconColor = isDark ? Colors.white70 : const Color(0xFF475569);
-    
+    final tokens = Theme.of(context).upHealHome;
+
     return FutureBuilder<Map<String, dynamic>>(
       future: _loadComparisonData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: cardColor,
+              borderRadius: BorderRadius.circular(tokens.cardRadius),
+              color: tokens.cardFill,
+              border: Border.all(color: tokens.cardBorder),
             ),
-            child: const Center(
+            child: Center(
               child: CircularProgressIndicator(
-                color: Color(0xFF7C3AED),
-              ),
+                  color: tokens.accentGradient.colors.first),
             ),
           );
         }
@@ -1197,251 +872,29 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
         }
 
         final currentData = data['current'] as List<Map<String, dynamic>>;
-        final previousData = data['previous'] as List<Map<String, dynamic>>? ?? [];
+        final previousData =
+            data['previous'] as List<Map<String, dynamic>>? ?? [];
 
-        // Find max value for Y axis
-        double maxY = 0;
-        for (final point in currentData) {
-          final hours = point['usageHours'] as double;
-          if (hours > maxY) maxY = hours;
-        }
-        for (final point in previousData) {
-          final hours = point['usageHours'] as double;
-          if (hours > maxY) maxY = hours;
-        }
-        maxY = (maxY * 1.2).ceilToDouble();
-        if (maxY < 1) maxY = 1;
-
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: cardColor,
-            border: Border.all(
-              color: borderColor,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    LucideIcons.lineChart,
-                    size: 20,
-                    color: iconColor,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Usage Trend',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Legend
-              Row(
-                children: [
-                  _buildLegendItem('This Week', const Color(0xFF7C3AED)),
-                  const SizedBox(width: 16),
-                  _buildLegendItem('Last Week', const Color(0xFF9CA3AF)),
-                ],
-              ),
-              const SizedBox(height: 20),
-              RepaintBoundary(
-                key: _weeklyChartKey,
-                child: SizedBox(
-                  height: 200,
-                  child: LineChart(
-                    LineChartData(
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      horizontalInterval: maxY / 4,
-                      getDrawingHorizontalLine: (value) {
-                        return FlLine(
-                          color: Colors.white.withOpacity(0.1),
-                          strokeWidth: 1,
-                        );
-                      },
-                    ),
-                    titlesData: FlTitlesData(
-                      rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
-                      topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 40,
-                          interval: maxY / 4,
-                          getTitlesWidget: (value, meta) {
-                            return Text(
-                              '${value.toStringAsFixed(1)}h',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                color: isDark ? Colors.white38 : const Color(0xFF64748B),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 30,
-                          interval: 1,
-                          getTitlesWidget: (value, meta) {
-                            final index = value.toInt();
-                            if (index >= 0 && index < currentData.length) {
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  currentData[index]['dayLabel'] as String,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    color: isDark ? Colors.white38 : const Color(0xFF64748B),
-                                  ),
-                                ),
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                      ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    minX: 0,
-                    maxX: (currentData.length - 1).toDouble(),
-                    minY: 0,
-                    maxY: maxY,
-                    lineBarsData: [
-                      // Current week line
-                      LineChartBarData(
-                        spots: List.generate(currentData.length, (i) {
-                          return FlSpot(
-                              i.toDouble(), currentData[i]['usageHours'] as double);
-                        }),
-                        isCurved: true,
-                        color: const Color(0xFF7C3AED),
-                        barWidth: 3,
-                        isStrokeCapRound: true,
-                        dotData: FlDotData(
-                          show: true,
-                          getDotPainter: (spot, percent, barData, index) {
-                            return FlDotCirclePainter(
-                              radius: 4,
-                              color: const Color(0xFF7C3AED),
-                              strokeWidth: 2,
-                              strokeColor: isDark ? Colors.white : const Color(0xFFFFFFFF),
-                            );
-                          },
-                        ),
-                        belowBarData: BarAreaData(
-                          show: true,
-                          color: const Color(0xFF7C3AED).withOpacity(0.1),
-                        ),
-                      ),
-                      // Previous week line
-                      if (previousData.isNotEmpty)
-                        LineChartBarData(
-                          spots: List.generate(previousData.length, (i) {
-                            return FlSpot(
-                                i.toDouble(), previousData[i]['usageHours'] as double);
-                          }),
-                          isCurved: true,
-                          color: const Color(0xFF9CA3AF),
-                          barWidth: 2,
-                          isStrokeCapRound: true,
-                          dashArray: [5, 5],
-                          dotData: FlDotData(
-                            show: true,
-                            getDotPainter: (spot, percent, barData, index) {
-                              return FlDotCirclePainter(
-                                radius: 3,
-                                color: const Color(0xFF9CA3AF),
-                                strokeWidth: 0,
-                              );
-                            },
-                          ),
-                        ),
-                    ],
-                    lineTouchData: LineTouchData(
-                      touchTooltipData: LineTouchTooltipData(
-                        getTooltipColor: (touchedSpot) =>
-                            const Color(0xFF3A3A3A),
-                        tooltipBorderRadius: BorderRadius.circular(8),
-                        getTooltipItems: (touchedSpots) {
-                          return touchedSpots.map((spot) {
-                            final isCurrentPeriod = spot.barIndex == 0;
-                            return LineTooltipItem(
-                              '${spot.y.toStringAsFixed(1)}h',
-                              GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isCurrentPeriod
-                                    ? const Color(0xFF7C3AED)
-                                    : const Color(0xFF9CA3AF),
-                              ),
-                            );
-                          }).toList();
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-           ) ],
-          ),
+        return UsageTrendChart(
+          currentWeek: currentData,
+          previousWeek: previousData,
+          chartKey: _weeklyChartKey,
         );
       },
     );
   }
 
-  Widget _buildLegendItem(String label, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 4,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            color: Theme.of(context).brightness == Brightness.dark 
-                ? Colors.white54 
-                : const Color(0xFF64748B),
-          ),
-        ),
-      ],
-    );
-  }
-
   Future<Map<String, dynamic>> _loadComparisonData() async {
     try {
-      // Load current week (last 7 days)
       final currentWeekData = await ScreenTimeService.getDailyUsageForTrend();
-      
-      // Load previous week (8-14 days ago)
-      final previousWeekData = await ScreenTimeService.getDailyUsageForPreviousWeek();
-      
-      // Format the data for the chart
+      final previousWeekData =
+          await ScreenTimeService.getDailyUsageForPreviousWeek();
+
       final List<Map<String, dynamic>> current = [];
       final List<Map<String, dynamic>> previous = [];
-      
+
       const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      
-      // Process current week
+
       for (int i = 0; i < 7; i++) {
         final dayData = currentWeekData.firstWhere(
           (d) => d['day'] == i,
@@ -1452,8 +905,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
           'usageHours': (dayData['totalHours'] as num).toDouble(),
         });
       }
-      
-      // Process previous week
+
       for (int i = 0; i < 7; i++) {
         final dayData = previousWeekData.firstWhere(
           (d) => d['day'] == i,
@@ -1464,471 +916,45 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
           'usageHours': (dayData['totalHours'] as num).toDouble(),
         });
       }
-      
-      return {
-        'current': current,
-        'previous': previous,
-      };
+
+      return {'current': current, 'previous': previous};
     } catch (e) {
       print('Error loading comparison data: $e');
-      // Return empty data on error
       const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       return {
-        'current': List.generate(7, (i) => {
-          'dayLabel': daysOfWeek[i],
-          'usageHours': 0.0,
-        }),
+        'current':
+            List.generate(7, (i) => {'dayLabel': daysOfWeek[i], 'usageHours': 0.0}),
         'previous': [],
       };
     }
   }
 
-  Widget _buildAppUsageBarChart() {
-    if (usageData.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final cardBgColor1 = isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade50;
-    final cardBgColor2 = isDark ? Colors.white.withOpacity(0.05) : Colors.white;
-    final borderColor = isDark ? Colors.white.withOpacity(0.2) : Colors.grey.shade200;
-
-    // Get top 10 apps for the chart
-    final topApps = usageData.take(10).toList();
-    final maxUsage = topApps.isNotEmpty 
-        ? (topApps[0]['usageTime'] as int) ~/ 1000 
-        : 1;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            cardBgColor1,
-            cardBgColor2,
-          ],
-        ),
-        border: Border.all(
-          color: borderColor,
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(LucideIcons.barChart, color: textColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'App Usage Breakdown',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            height: 300,
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: maxUsage.toDouble(),
-                barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      final app = topApps[group.x.toInt()];
-                      return BarTooltipItem(
-                        '${app['appName']}\n',
-                        GoogleFonts.inter(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: _formatTime((app['usageTime'] as int) ~/ 1000),
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        if (value.toInt() >= topApps.length) {
-                          return const SizedBox.shrink();
-                        }
-                        final app = topApps[value.toInt()];
-                        final appName = app['appName'] as String;
-                        // Show first 3 characters of app name
-                        final displayName = appName.length > 3 
-                            ? appName.substring(0, 3) 
-                            : appName;
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            displayName,
-                            style: GoogleFonts.inter(
-                              color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                              fontSize: 10,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        if (value == 0) return const SizedBox.shrink();
-                        final hours = value ~/ 3600;
-                        final minutes = (value % 3600) ~/ 60;
-                        if (hours > 0) {
-                          return Text(
-                            '${hours}h',
-                            style: GoogleFonts.inter(
-                              color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                              fontSize: 10,
-                            ),
-                          );
-                        } else {
-                          return Text(
-                            '${minutes}m',
-                            style: GoogleFonts.inter(
-                              color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                              fontSize: 10,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                ),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: maxUsage / 5,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: Colors.white.withOpacity(0.1),
-                      strokeWidth: 1,
-                    );
-                  },
-                ),
-                borderData: FlBorderData(show: false),
-                barGroups: List.generate(topApps.length, (index) {
-                  final app = topApps[index];
-                  final usageSeconds = (app['usageTime'] as int) ~/ 1000;
-                  return BarChartGroupData(
-                    x: index,
-                    barRods: [
-                      BarChartRodData(
-                        toY: usageSeconds.toDouble(),
-                        gradient: LinearGradient(
-                          colors: [
-                            const Color(0xFF7C3AED),
-                            const Color(0xFF2563EB),
-                          ],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                        ),
-                        width: 16,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(4),
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopApps() {
-    final topApps = _getTopApps();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final cardBgColor1 = isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade50;
-    final cardBgColor2 = isDark ? Colors.white.withOpacity(0.05) : Colors.white;
-    final borderColor = isDark ? Colors.white.withOpacity(0.2) : Colors.grey.shade200;
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            cardBgColor1,
-            cardBgColor2,
-          ],
-        ),
-        border: Border.all(
-          color: borderColor,
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(LucideIcons.smartphone, color: textColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Most Used Apps',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...topApps.map((app) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                _AppIconWidget(
-                  packageName: app['packageName'] as String,
-                  appName: app['name'] as String,
-                  size: 40,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        app['name'],
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
-                        ),
-                      ),
-                      Text(
-                        app['time'],
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: textColor.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Time limit indicator
-                    if (appTimeLimits.containsKey(app['packageName']))
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C3AED).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color(0xFF7C3AED),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              LucideIcons.clock,
-                              color: Color(0xFF7C3AED),
-                              size: 10,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              '${appTimeLimits[app['packageName']]}m',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF7C3AED),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    const SizedBox(width: 8),
-                    // Blocked indicator
-                    if (blockedPackages.contains(app['packageName']))
-                      const Icon(
-                        LucideIcons.shieldOff,
-                        color: Colors.red,
-                        size: 16,
-                      ),
-                    const SizedBox(width: 8),
-                    // Options button
-                    IconButton(
-                      onPressed: () {
-                        _showAppOptionsDialog(
-                          app['packageName'] as String,
-                          app['name'] as String,
-                          app['time'] as String,
-                        );
-                      },
-                      icon: const Icon(
-                        LucideIcons.shield,
-                        color: Colors.orange,
-                        size: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          )),
-        ],
-      ),
-    );
-  }
-
-
-
-  String _formatTime(int totalSeconds) {
-    if (totalSeconds < 60) return '$totalSeconds secs';
-    final int minutes = totalSeconds ~/ 60;
-    final int hours = minutes ~/ 60;
-    final int remainingMinutes = minutes % 60;
-
-    if (hours > 0) {
-      return '${hours} hr ${remainingMinutes} mins';
-    } else if (minutes > 0) {
-      return '${minutes} mins';
-    } else {
-      return '$totalSeconds secs';
-    }
-  }
-
   int _calculateFocusScore() {
     if (usageData.isEmpty) return 0;
-    
-    // Simple focus score calculation based on app diversity and total time
     final productiveApps = usageData.where((app) {
       final appName = app['appName'] as String;
       return appName.toLowerCase().contains('chrome') ||
-        appName.toLowerCase().contains('notes') ||
-        appName.toLowerCase().contains('calendar') ||
-        appName.toLowerCase().contains('email');
+          appName.toLowerCase().contains('notes') ||
+          appName.toLowerCase().contains('calendar') ||
+          appName.toLowerCase().contains('email');
     }).length;
-    
     final totalApps = usageData.length;
     final productiveRatio = totalApps > 0 ? productiveApps / totalApps : 0;
-    
-    // Base score from productive ratio, adjusted by total time
     final baseScore = (productiveRatio * 100).round();
-    final timeAdjustment = totalScreenTime > 3600 ? -10 : 0; // Penalty for excessive usage
-    
+    final totalSeconds = usageData.fold<int>(0, (sum, item) => sum + ((item['usageTime'] as int) ~/ 1000));
+    final timeAdjustment = totalSeconds > 3600 ? -10 : 0;
     return (baseScore + timeAdjustment).clamp(0, 100);
   }
 
-  Color _getScoreColor(int score) {
-    if (score >= 80) return const Color(0xFF4CAF50);
-    if (score >= 60) return const Color(0xFFFFC107);
-    if (score >= 40) return const Color(0xFFFF9800);
-    return const Color(0xFFF44336);
-  }
-
-  String _getScoreMessage(int score) {
-    if (score >= 80) return 'Excellent focus! Keep it up!';
-    if (score >= 60) return 'Good focus, room for improvement';
-    if (score >= 40) return 'Moderate focus, try to reduce distractions';
-    return 'Low focus, consider blocking more apps';
-  }
-
-
-  List<FlSpot> _generateWeeklyData() {
-    // This will be replaced with real data loading
-    return List.generate(7, (index) {
-      final baseHours = (totalScreenTime / 3600) / 7; // Distribute current usage across week
-      final randomVariation = (index % 3 - 1) * 0.5;
-      return FlSpot(index.toDouble(), (baseHours + randomVariation).clamp(0.0, 12.0));
-    });
-  }
-
-  // Load real weekly trend data
-  Future<List<FlSpot>> _loadWeeklyTrendData() async {
-    try {
-      final dailyData = await ScreenTimeService.getDailyUsageForTrend();
-      
-      if (dailyData.isEmpty) {
-        // Fallback to generated data if no real data available
-        return _generateWeeklyData();
-      }
-      
-      // Convert real daily data to chart spots
-      List<FlSpot> spots = [];
-      for (var day in dailyData) {
-        final dayNumber = day['day'] as int;
-        final totalHours = day['totalHours'] as double;
-        spots.add(FlSpot(dayNumber.toDouble(), totalHours));
-      }
-      
-      print('=== WEEKLY TREND CHART DATA ===');
-      for (int i = 0; i < spots.length; i++) {
-        print('Day ${i + 1}: ${spots[i].y.toStringAsFixed(2)} hours');
-      }
-      
-      return spots;
-    } catch (e) {
-      print('Error loading weekly trend data: $e');
-      return _generateWeeklyData();
-    }
-  }
-
-  List<Map<String, dynamic>> _getTopApps() {
-    return usageData.take(5).map((app) => {
-          'name': app['appName'] as String,
-          'packageName': app['packageName'] as String,
-          'time': _formatTime((app['usageTime'] as int) ~/ 1000), // Convert ms to seconds
-        }).toList();
-  }
-
-  // Load blocked apps from native
   Future<void> _loadBlockedApps() async {
     try {
       final blocked = await platform.invokeMethod('getBlockedApps');
-      setState(() {
-        blockedPackages = Set<String>.from(blocked);
-      });
+      setState(() => blockedPackages = Set<String>.from(blocked));
     } catch (e) {
       print('Error loading blocked apps: $e');
     }
   }
 
-  // Load time limits from SharedPreferences
   Future<void> _loadTimeLimits() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -1936,7 +962,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
       if (limitsJson != null) {
         final Map<String, dynamic> decoded = json.decode(limitsJson);
         setState(() {
-          appTimeLimits = decoded.map((key, value) => MapEntry(key, value as int));
+          appTimeLimits =
+              decoded.map((key, value) => MapEntry(key, value as int));
         });
       }
     } catch (e) {
@@ -1944,24 +971,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
     }
   }
 
-  // Save time limits to SharedPreferences
   Future<void> _saveTimeLimits() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('app_time_limits', json.encode(appTimeLimits));
+      await prefs.setString(
+          'app_time_limits', json.encode(appTimeLimits));
     } catch (e) {
       print('Error saving time limits: $e');
     }
   }
 
-  // Toggle app blocking
   Future<void> _toggleAppBlock(String packageName, bool isBlocked) async {
     try {
       final success = await platform.invokeMethod('setAppBlockStatus', {
         'packageName': packageName,
         'isBlocked': isBlocked,
       });
-
       if (success) {
         setState(() {
           if (isBlocked) {
@@ -1970,10 +995,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
             blockedPackages.remove(packageName);
           }
         });
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isBlocked ? 'App blocked successfully' : 'App unblocked successfully'),
+            content:
+                Text(isBlocked ? 'App blocked successfully' : 'App unblocked successfully'),
             backgroundColor: const Color(0xFF7C3AED),
           ),
         );
@@ -1982,15 +1007,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
       print('Error toggling app block: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+            content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
-  // Show app options dialog (block/time limit)
-  void _showAppOptionsDialog(String packageName, String appName, String usageTime) {
+  void _showAppOptionsDialog(
+      String packageName, String appName, String usageTime) {
     final bool isBlocked = blockedPackages.contains(packageName);
     final int? currentLimit = appTimeLimits[packageName];
 
@@ -2003,12 +1026,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
         isBlocked: isBlocked,
         currentTimeLimit: currentLimit,
         onApply: (blocked, minutes) async {
-          // Apply block status
           if (blocked != isBlocked) {
             await _toggleAppBlock(packageName, blocked);
           }
-          
-          // Apply time limit
           setState(() {
             if (minutes > 0) {
               appTimeLimits[packageName] = minutes;
@@ -2017,35 +1037,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
             }
           });
           await _saveTimeLimits();
-          
           Navigator.of(context).pop();
-          
-          // Show success message
+
           String message = '';
           if (blocked != isBlocked && minutes > 0) {
-            message = blocked 
+            message = blocked
                 ? 'App blocked and time limit set to $minutes minutes'
                 : 'App unblocked and time limit set to $minutes minutes';
           } else if (blocked != isBlocked) {
-            message = blocked ? 'App blocked successfully' : 'App unblocked successfully';
+            message = blocked
+                ? 'App blocked successfully'
+                : 'App unblocked successfully';
           } else if (minutes > 0) {
             message = 'Time limit set to $minutes minutes';
           } else {
             message = 'Time limit removed';
           }
-          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(message),
-              backgroundColor: const Color(0xFF7C3AED),
-            ),
+                content: Text(message),
+                backgroundColor: const Color(0xFF7C3AED)),
           );
         },
       ),
     );
   }
 
-  /// Show export options bottom sheet
   void _showExportOptions() {
     if (usageData.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2055,11 +1072,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
               const Icon(LucideIcons.alertCircle, color: Colors.white),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'No data available to export',
-                  style: GoogleFonts.inter(fontSize: 14),
-                ),
-              ),
+                  child: Text('No data available to export',
+                      style: GoogleFonts.inter(fontSize: 14))),
             ],
           ),
           backgroundColor: Colors.orange,
@@ -2075,7 +1089,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
         return ExportBottomSheet(
           usageData: usageData,
           chartKey: _weeklyChartKey,
-          chartFilename: 'analytics-chart-${DateTime.now().millisecondsSinceEpoch}.png',
+          chartFilename:
+              'analytics-chart-${DateTime.now().millisecondsSinceEpoch}.png',
           onSuccess: () {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -2085,11 +1100,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
                       const Icon(LucideIcons.check, color: Colors.white),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          'Export successful!',
-                          style: GoogleFonts.inter(fontSize: 14),
-                        ),
-                      ),
+                          child: Text('Export successful!',
+                              style: GoogleFonts.inter(fontSize: 14))),
                     ],
                   ),
                   backgroundColor: Colors.green,
@@ -2104,16 +1116,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
                 SnackBar(
                   content: Row(
                     children: [
-                      const Icon(LucideIcons.alertCircle, color: Colors.white),
+                      const Icon(LucideIcons.alertCircle,
+                          color: Colors.white),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          errorMsg,
-                          style: GoogleFonts.inter(fontSize: 14),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+                          child: Text(errorMsg,
+                              style: GoogleFonts.inter(fontSize: 14),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis)),
                     ],
                   ),
                   backgroundColor: Colors.red,
@@ -2138,243 +1148,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with WidgetsBindingOb
   }
 }
 
-
-
-// Widget to display actual app icons
-class _AppIconWidget extends StatefulWidget {
-  final String packageName;
-  final String appName;
-  final double size;
-
-  const _AppIconWidget({
-    required this.packageName,
-    required this.appName,
-    required this.size,
-  });
-
-  @override
-  State<_AppIconWidget> createState() => _AppIconWidgetState();
-}
-
-class _AppIconWidgetState extends State<_AppIconWidget> {
-  static const MethodChannel _platform = MethodChannel('com.appguard.native_calls');
-  static final Map<String, Uint8List?> _iconCache = {};
-
-  Uint8List? _iconBytes;
-
-  @override
-  void initState() {
-    super.initState();
-    // Try cache first
-    _iconBytes = _iconCache[widget.packageName];
-    if (_iconBytes == null) {
-      _loadIcon();
-    }
-  }
-
-  Future<void> _loadIcon() async {
-    try {
-      final bytes = await _platform.invokeMethod('getAppIcon', {
-        'packageName': widget.packageName,
-      });
-      if (!mounted) return;
-      if (bytes != null) {
-        setState(() {
-          _iconBytes = bytes as Uint8List;
-          _iconCache[widget.packageName] = _iconBytes;
-        });
-      }
-    } catch (e) {
-      // Fallback to placeholder icon
-      debugPrint('Icon load failed for ${widget.packageName}: $e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final borderColor = _getAppColor(widget.appName).withOpacity(0.3);
-    final bgColor = _getAppColor(widget.appName).withOpacity(0.1);
-
-    return Container(
-      width: widget.size,
-      height: widget.size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(widget.size * 0.2),
-        color: bgColor,
-        border: Border.all(
-          color: borderColor,
-          width: 1,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(widget.size * 0.18),
-        child: _iconBytes != null
-            ? Image.memory(
-                _iconBytes!,
-                fit: BoxFit.cover,
-              )
-            : Icon(
-                _getAppIcon(widget.appName),
-                size: widget.size * 0.6,
-                color: _getAppColor(widget.appName),
-              ),
-      ),
-    );
-  }
-
-  Color _getAppColor(String appName) {
-    if (appName.contains('Instagram')) return Colors.blueAccent;
-    if (appName.contains('YouTube')) return Colors.red;
-    if (appName.contains('Chrome')) return Colors.orange;
-    if (appName.contains('Discord')) return Colors.purple;
-    if (appName.contains('Spotify')) return Colors.green;
-    if (appName.contains('TikTok')) return Colors.black;
-    if (appName.contains('Facebook')) return Colors.blue;
-    if (appName.contains('Twitter')) return Colors.lightBlue;
-    if (appName.contains('Snapchat')) return Colors.yellow;
-    if (appName.contains('WhatsApp')) return Colors.green;
-    if (appName.contains('Telegram')) return Colors.blue;
-    if (appName.contains('Netflix')) return Colors.red;
-    if (appName.contains('Gmail')) return Colors.red;
-    if (appName.contains('Maps')) return Colors.green;
-    if (appName.contains('Photos')) return Colors.blue;
-    if (appName.contains('Calendar')) return Colors.blue;
-    if (appName.contains('Drive')) return Colors.blue;
-    if (appName.contains('Zoom')) return Colors.blue;
-    if (appName.contains('Slack')) return Colors.purple;
-    if (appName.contains('Uber')) return Colors.black;
-    if (appName.contains('Airbnb')) return Colors.red;
-    if (appName.contains('Pinterest')) return Colors.red;
-    if (appName.contains('Reddit')) return Colors.orange;
-    if (appName.contains('LinkedIn')) return Colors.blue;
-    if (appName.contains('GitHub')) return Colors.black;
-    if (appName.contains('Medium')) return Colors.black;
-    if (appName.contains('Quora')) return Colors.red;
-    if (appName.contains('Tumblr')) return Colors.blue;
-    if (appName.contains('Flickr')) return Colors.pink;
-    if (appName.contains('VSCO')) return Colors.black;
-    if (appName.contains('Lightroom')) return Colors.purple;
-    if (appName.contains('Snapseed')) return Colors.blue;
-    if (appName.contains('Canva')) return Colors.blue;
-    if (appName.contains('Adobe')) return Colors.red;
-    if (appName.contains('Kindle')) return Colors.orange;
-    if (appName.contains('Audible')) return Colors.orange;
-    if (appName.contains('Podcasts')) return Colors.purple;
-    if (appName.contains('SoundCloud')) return Colors.orange;
-    if (appName.contains('Pandora')) return Colors.pink;
-    if (appName.contains('iHeartRadio')) return Colors.red;
-    if (appName.contains('Fitness')) return Colors.green;
-    if (appName.contains('Strava')) return Colors.orange;
-    if (appName.contains('Nike')) return Colors.black;
-    if (appName.contains('Stack')) return Colors.orange;
-    if (appName.contains('Teams')) return Colors.blue;
-    if (appName.contains('Skype')) return Colors.blue;
-    if (appName.contains('Trello')) return Colors.blue;
-    if (appName.contains('Notion')) return Colors.black;
-    if (appName.contains('Evernote')) return Colors.green;
-    if (appName.contains('Keep')) return Colors.yellow;
-    if (appName.contains('Duo')) return Colors.blue;
-    if (appName.contains('Messages')) return Colors.green;
-    if (appName.contains('Firefox')) return Colors.orange;
-    if (appName.contains('Opera')) return Colors.red;
-    if (appName.contains('Edge')) return Colors.blue;
-    if (appName.contains('Samsung')) return Colors.blue;
-    if (appName.contains('Books')) return Colors.orange;
-    if (appName.contains('Meet')) return Colors.green;
-    if (appName.contains('Translate')) return Colors.blue;
-    if (appName.contains('Docs')) return Colors.blue;
-    if (appName.contains('Excel')) return Colors.green;
-    if (appName.contains('Word')) return Colors.blue;
-    if (appName.contains('PowerPoint')) return Colors.orange;
-    if (appName.contains('DoorDash')) return Colors.red;
-    if (appName.contains('Grubhub')) return Colors.orange;
-    if (appName.contains('Booking')) return Colors.blue;
-    if (appName.contains('Layout')) return Colors.purple;
-    if (appName.contains('Boomerang')) return Colors.blue;
-    if (appName.contains('Hyperlapse')) return Colors.purple;
-    
-    return Colors.teal;
-  }
-
-  IconData _getAppIcon(String appName) {
-    final lowerName = appName.toLowerCase();
-    
-    if (lowerName.contains('tiktok')) return LucideIcons.music;
-    if (lowerName.contains('instagram')) return LucideIcons.camera;
-    if (lowerName.contains('youtube')) return LucideIcons.play;
-    if (lowerName.contains('facebook')) return LucideIcons.facebook;
-    if (lowerName.contains('twitter')) return LucideIcons.twitter;
-    if (lowerName.contains('snapchat')) return LucideIcons.camera;
-    if (lowerName.contains('whatsapp')) return LucideIcons.messageCircle;
-    if (lowerName.contains('telegram')) return LucideIcons.send;
-    if (lowerName.contains('discord')) return LucideIcons.messageSquare;
-    if (lowerName.contains('spotify')) return LucideIcons.music;
-    if (lowerName.contains('netflix')) return LucideIcons.tv;
-    if (lowerName.contains('chrome')) return LucideIcons.globe;
-    if (lowerName.contains('gmail')) return LucideIcons.mail;
-    if (lowerName.contains('maps')) return LucideIcons.mapPin;
-    if (lowerName.contains('photos')) return LucideIcons.image;
-    if (lowerName.contains('calendar')) return LucideIcons.calendar;
-    if (lowerName.contains('drive')) return LucideIcons.folder;
-    if (lowerName.contains('zoom')) return LucideIcons.video;
-    if (lowerName.contains('slack')) return LucideIcons.messageSquare;
-    if (lowerName.contains('uber')) return LucideIcons.car;
-    if (lowerName.contains('airbnb')) return LucideIcons.home;
-    if (lowerName.contains('pinterest')) return LucideIcons.pin;
-    if (lowerName.contains('reddit')) return LucideIcons.messageCircle;
-    if (lowerName.contains('linkedin')) return LucideIcons.linkedin;
-    if (lowerName.contains('github')) return LucideIcons.github;
-    if (lowerName.contains('medium')) return LucideIcons.bookOpen;
-    if (lowerName.contains('quora')) return LucideIcons.helpCircle;
-    if (lowerName.contains('tumblr')) return LucideIcons.messageSquare;
-    if (lowerName.contains('flickr')) return LucideIcons.image;
-    if (lowerName.contains('vsco')) return LucideIcons.camera;
-    if (lowerName.contains('lightroom')) return LucideIcons.image;
-    if (lowerName.contains('snapseed')) return LucideIcons.image;
-    if (lowerName.contains('canva')) return LucideIcons.palette;
-    if (lowerName.contains('adobe')) return LucideIcons.image;
-    if (lowerName.contains('kindle')) return LucideIcons.book;
-    if (lowerName.contains('audible')) return LucideIcons.headphones;
-    if (lowerName.contains('podcasts')) return LucideIcons.podcast;
-    if (lowerName.contains('soundcloud')) return LucideIcons.music;
-    if (lowerName.contains('pandora')) return LucideIcons.music;
-    if (lowerName.contains('iheartradio')) return LucideIcons.radio;
-    if (lowerName.contains('fitness')) return LucideIcons.activity;
-    if (lowerName.contains('strava')) return LucideIcons.activity;
-    if (lowerName.contains('nike')) return LucideIcons.activity;
-    if (lowerName.contains('stack')) return LucideIcons.code;
-    if (lowerName.contains('teams')) return LucideIcons.users;
-    if (lowerName.contains('skype')) return LucideIcons.video;
-    if (lowerName.contains('trello')) return LucideIcons.trello;
-    if (lowerName.contains('notion')) return LucideIcons.fileText;
-    if (lowerName.contains('evernote')) return LucideIcons.fileText;
-    if (lowerName.contains('keep')) return LucideIcons.stickyNote;
-    if (lowerName.contains('duo')) return LucideIcons.video;
-    if (lowerName.contains('messages')) return LucideIcons.messageCircle;
-    if (lowerName.contains('firefox')) return LucideIcons.globe;
-    if (lowerName.contains('opera')) return LucideIcons.globe;
-    if (lowerName.contains('edge')) return LucideIcons.globe;
-    if (lowerName.contains('samsung')) return LucideIcons.globe;
-    if (lowerName.contains('books')) return LucideIcons.book;
-    if (lowerName.contains('meet')) return LucideIcons.video;
-    if (lowerName.contains('translate')) return LucideIcons.languages;
-    if (lowerName.contains('docs')) return LucideIcons.fileText;
-    if (lowerName.contains('excel')) return LucideIcons.table;
-    if (lowerName.contains('word')) return LucideIcons.fileText;
-    if (lowerName.contains('powerpoint')) return LucideIcons.presentation;
-    if (lowerName.contains('doordash')) return LucideIcons.truck;
-    if (lowerName.contains('grubhub')) return LucideIcons.truck;
-    if (lowerName.contains('booking')) return LucideIcons.bed;
-    if (lowerName.contains('layout')) return LucideIcons.layout;
-    if (lowerName.contains('boomerang')) return LucideIcons.rotateCcw;
-    if (lowerName.contains('hyperlapse')) return LucideIcons.fastForward;
-    
-    // Default icon for unknown apps
-    return LucideIcons.smartphone;
-  }
-}
-
-// App Options Dialog Widget
 class _AppOptionsDialog extends StatefulWidget {
   final String packageName;
   final String appName;
@@ -2423,16 +1196,13 @@ class _AppOptionsDialogState extends State<_AppOptionsDialog> {
 
     return Dialog(
       backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               children: [
                 Container(
@@ -2442,115 +1212,88 @@ class _AppOptionsDialogState extends State<_AppOptionsDialog> {
                     color: const Color(0xFF7C3AED).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    LucideIcons.shield,
-                    color: Color(0xFF7C3AED),
-                    size: 24,
-                  ),
+                  child: const Icon(LucideIcons.shield,
+                      color: Color(0xFF7C3AED), size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.appName,
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black,
-                        ),
-                      ),
-                      Text(
-                        'Current usage: ${widget.usageTime}',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
+                      Text(widget.appName,
+                          style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  isDark ? Colors.white : Colors.black)),
+                      Text('Current usage: ${widget.usageTime}',
+                          style: GoogleFonts.inter(
+                              fontSize: 12, color: Colors.grey)),
                     ],
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(
-                    LucideIcons.x,
-                    color: isDark ? Colors.white : Colors.black,
-                  ),
+                  icon: Icon(LucideIcons.x,
+                      color: isDark ? Colors.white : Colors.black),
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            
-            // Block Toggle
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isDark 
-                    ? Colors.white.withOpacity(0.05) 
+                color: isDark
+                    ? Colors.white.withOpacity(0.05)
                     : Colors.grey.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _isBlocked ? Colors.red : Colors.transparent,
-                  width: 2,
-                ),
+                    color: _isBlocked ? Colors.red : Colors.transparent,
+                    width: 2),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    _isBlocked ? LucideIcons.shieldOff : LucideIcons.shield,
-                    color: _isBlocked ? Colors.red : const Color(0xFF7C3AED),
-                    size: 24,
-                  ),
+                  Icon(_isBlocked ? LucideIcons.shieldOff : LucideIcons.shield,
+                      color: _isBlocked
+                          ? Colors.red
+                          : const Color(0xFF7C3AED),
+                      size: 24),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text('Block App',
+                            style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    isDark ? Colors.white : Colors.black)),
                         Text(
-                          'Block App',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                        Text(
-                          _isBlocked ? 'App is currently blocked' : 'Prevent app from opening',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
+                            _isBlocked
+                                ? 'App is currently blocked'
+                                : 'Prevent app from opening',
+                            style: GoogleFonts.inter(
+                                fontSize: 12, color: Colors.grey)),
                       ],
                     ),
                   ),
                   Switch(
                     value: _isBlocked,
-                    onChanged: (value) {
-                      setState(() {
-                        _isBlocked = value;
-                      });
-                    },
+                    onChanged: (value) =>
+                        setState(() => _isBlocked = value),
                     activeColor: Colors.red,
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            
-            // Time Limit Section
-            Text(
-              'Daily Time Limit',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black,
-              ),
-            ),
+            Text('Daily Time Limit',
+                style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black)),
             const SizedBox(height: 12),
-            
-            // Preset limits
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -2563,8 +1306,6 @@ class _AppOptionsDialogState extends State<_AppOptionsDialog> {
               ],
             ),
             const SizedBox(height: 16),
-            
-            // Custom time input
             Row(
               children: [
                 Expanded(
@@ -2572,89 +1313,63 @@ class _AppOptionsDialogState extends State<_AppOptionsDialog> {
                     controller: _timeLimitController,
                     keyboardType: TextInputType.number,
                     style: GoogleFonts.inter(
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
+                        color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       labelText: 'Custom limit (minutes)',
-                      labelStyle: GoogleFonts.inter(
-                        color: Colors.grey,
-                      ),
+                      labelStyle: GoogleFonts.inter(color: Colors.grey),
                       filled: true,
-                      fillColor: isDark 
-                          ? Colors.white.withOpacity(0.05) 
+                      fillColor: isDark
+                          ? Colors.white.withOpacity(0.05)
                           : Colors.grey.withOpacity(0.1),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
-                      suffixIcon: const Icon(
-                        LucideIcons.clock,
-                        color: Colors.grey,
-                      ),
+                      suffixIcon:
+                          const Icon(LucideIcons.clock, color: Colors.grey),
                     ),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedPresetLimit = null;
-                      });
-                    },
+                    onChanged: (value) =>
+                        setState(() => _selectedPresetLimit = null),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            
-            // Action Buttons
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {
-                      // Remove limit and apply
-                      widget.onApply(_isBlocked, 0);
-                    },
+                    onPressed: () => widget.onApply(_isBlocked, 0),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      side: const BorderSide(
-                        color: Colors.grey,
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
+                      side: const BorderSide(color: Colors.grey),
                     ),
-                    child: Text(
-                      'Remove Limit',
-                      style: GoogleFonts.inter(
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: Text('Remove Limit',
+                        style: GoogleFonts.inter(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      // Get the limit value
-                      final limit = _selectedPresetLimit ?? 
+                      final limit = _selectedPresetLimit ??
                           (int.tryParse(_timeLimitController.text) ?? 0);
-                      
-                      // Call single callback with both values
                       widget.onApply(_isBlocked, limit);
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       backgroundColor: const Color(0xFF7C3AED),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: Text(
-                      'Apply',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: Text('Apply',
+                        style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -2669,7 +1384,8 @@ class _AppOptionsDialogState extends State<_AppOptionsDialog> {
     final isSelected = _selectedPresetLimit == minutes;
     final hours = minutes >= 60 ? '${minutes ~/ 60}h' : '';
     final mins = minutes % 60 > 0 ? '${minutes % 60}m' : '';
-    final label = hours.isEmpty ? mins : (mins.isEmpty ? hours : '$hours $mins');
+    final label =
+        hours.isEmpty ? mins : (mins.isEmpty ? hours : '$hours $mins');
 
     return ChoiceChip(
       label: Text(label),
@@ -2681,19 +1397,17 @@ class _AppOptionsDialogState extends State<_AppOptionsDialog> {
         });
       },
       selectedColor: const Color(0xFF7C3AED),
-      backgroundColor: isDark 
-          ? Colors.white.withOpacity(0.05) 
+      backgroundColor: isDark
+          ? Colors.white.withOpacity(0.05)
           : Colors.grey.withOpacity(0.1),
       labelStyle: GoogleFonts.inter(
-        color: isSelected 
-            ? Colors.white 
+        color: isSelected
+            ? Colors.white
             : (isDark ? Colors.white70 : Colors.black87),
         fontWeight: FontWeight.w600,
         fontSize: 12,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 }

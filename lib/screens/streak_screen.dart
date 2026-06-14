@@ -1,19 +1,23 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import '../models/user_model.dart';
+
 import '../models/streak_model.dart';
 import '../services/streak_service.dart';
-import '../constants/app_colors.dart';
-import '../navigation/navigation_helpers.dart';
-import '../widgets/streak/streak_calendar.dart';
-import '../widgets/streak/streak_stats_card.dart';
-import '../widgets/streak/streak_milestone_card.dart';
+import '../shared/theme/upheal_home_theme.dart';
+import '../shared/widgets/upheal_home_widgets.dart';
 import '../widgets/streak/streak_freeze_dialog.dart';
 import '../widgets/streak/streak_celebration.dart';
 
+const Color _fireA = Color(0xFFFFB23E);
+const Color _fireB = Color(0xFFFF7A45);
+const Color _fireC = Color(0xFFFF4D6D);
+const LinearGradient _fireGradient = LinearGradient(
+  colors: [_fireA, _fireB, _fireC],
+);
 class StreakScreen extends StatefulWidget {
   const StreakScreen({super.key});
 
@@ -21,39 +25,24 @@ class StreakScreen extends StatefulWidget {
   State<StreakScreen> createState() => _StreakScreenState();
 }
 
-class _StreakScreenState extends State<StreakScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
+class _StreakScreenState extends State<StreakScreen> {
   bool _showCelebration = false;
   StreakMilestone? _celebratingMilestone;
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-
-    // Check for new milestones to celebrate
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForCelebrations();
     });
   }
 
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
   void _checkForCelebrations() {
     final streakState = context.read<StreakState>();
-    // Check if there's a newly unlocked milestone to celebrate
     final unlockedMilestones = streakState.milestones
         .where((m) => m.isUnlocked && m.daysRequired == streakState.currentStreak)
         .toList();
-    
+
     if (unlockedMilestones.isNotEmpty) {
       setState(() {
         _showCelebration = true;
@@ -64,85 +53,25 @@ class _StreakScreenState extends State<StreakScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = Theme.of(context).upHealHome;
+    final streakState = context.watch<StreakState>();
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            LucideIcons.arrowLeft,
-            color: isDark ? Colors.white : AppColors.textPrimary,
-            size: 24,
-          ),
-          onPressed: () => safeGoBack(context),
-          tooltip: 'Back',
-        ),
-        title: Text(
-          'My Streak',
-          style: GoogleFonts.inter(
-            color: isDark ? Colors.white : AppColors.textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          Consumer<StreakState>(
-            builder: (context, streakState, _) {
-              return StreakFreezeIndicator(
-                freezeTokens: streakState.freezeTokens,
-                onTap: () => _showFreezeDialog(context, streakState),
-              );
-            },
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
+    return UpHealScaffold(
       body: Stack(
         children: [
-          Consumer2<UserModel, StreakState>(
-            builder: (context, userModel, streakState, _) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Streak Header Card with pulse animation
-                    _buildStreakHeaderCard(context, userModel, streakState),
-                    const SizedBox(height: 24),
-
-                    // Today's Activities
-                    _buildTodayActivities(context, streakState),
-                    const SizedBox(height: 24),
-
-                    // Streak Stats Card
-                    StreakStatsCard(streakState: streakState),
-                    const SizedBox(height: 24),
-
-                    // Milestones Section
-                    StreakMilestonesList(
-                      milestones: StreakMilestone.allMilestones,
-                      currentStreak: streakState.currentStreak,
-                      onMilestoneTap: (milestone) => _showMilestoneDetails(context, milestone, streakState),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Streak Calendar
-                    StreakCalendar(streakState: streakState),
-                    const SizedBox(height: 24),
-
-                    // Tips Section
-                    _buildTipsSection(context),
-                    const SizedBox(height: 32),
-                  ],
-                ),
-              );
-            },
+          SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                _buildHeader(streakState, tokens),
+                SliverToBoxAdapter(child: _buildHeroCard(streakState, tokens)),
+                SliverToBoxAdapter(child: _buildWeekCard(streakState, tokens)),
+                SliverToBoxAdapter(child: _buildStatRow(streakState, tokens)),
+                SliverToBoxAdapter(child: _buildFreezeCard(streakState, tokens)),
+                SliverToBoxAdapter(child: _buildMilestonesSection(streakState, tokens)),
+                SliverToBoxAdapter(child: SizedBox(height: tokens.screenPadding)),
+              ],
+            ),
           ),
-          
-          // Celebration overlay
           if (_showCelebration && _celebratingMilestone != null)
             StreakCelebration(
               milestone: _celebratingMilestone!,
@@ -151,6 +80,559 @@ class _StreakScreenState extends State<StreakScreen>
                 _celebratingMilestone = null;
               }),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(StreakState streakState, UpHealHomeTheme tokens) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(4, tokens.space8, tokens.space12, 0),
+        child: Row(
+          children: [
+            IconButton(
+              icon: Icon(LucideIcons.chevronLeft, color: tokens.primaryText),
+              onPressed: () => Navigator.maybePop(context),
+              tooltip: 'Back',
+            ),
+            Text(
+              'My Streak',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w700,
+                color: tokens.primaryText,
+                fontSize: 20,
+              ),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () => _showFreezeDialog(context, streakState),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: tokens.space8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: tokens.cardFill,
+                  borderRadius: BorderRadius.circular(tokens.pillRadius),
+                  border: Border.all(color: tokens.cardBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(LucideIcons.snowflake, size: 14, color: const Color(0xFF6BCB8E)),
+                    SizedBox(width: 4),
+                    Text(
+                      '${streakState.freezeTokens}',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: tokens.primaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroCard(StreakState streakState, UpHealHomeTheme tokens) {
+    final streak = streakState.currentStreak;
+    final nextMs = streakState.nextMilestone;
+    final progress = nextMs != null
+        ? (streak / nextMs.daysRequired).clamp(0.0, 1.0)
+        : 1.0;
+    final record = streakState.longestStreak;
+    final daysToBeat = record > streak ? record - streak : 0;
+    final motivMsg = daysToBeat > 0
+        ? '$daysToBeat day${daysToBeat > 1 ? 's' : ''} to beat your record'
+        : streak >= 365
+            ? 'Incredible! A full year!'
+            : streak >= 180
+                ? 'Half a year strong! Keep going!'
+                : streak >= 90
+                    ? 'Quarter champion! Almost half a year!'
+                    : streak >= 30
+                        ? 'A whole month! You\u2019re on fire!'
+                        : streak >= 14
+                            ? 'Two weeks strong! Building the habit!'
+                            : streak >= 7
+                                ? 'One week! Keep the momentum!'
+                                : 'Every day counts. Keep going!';
+
+    return Container(
+      margin: EdgeInsets.all(tokens.screenPadding),
+      padding: EdgeInsets.all(tokens.space20),
+      decoration: BoxDecoration(
+        color: tokens.cardFill,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow != null
+            ? [tokens.cardShadow!]
+            : const <BoxShadow>[],
+      ),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 192,
+                height: 192,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _fireA.withValues(alpha: 0.15),
+                      blurRadius: 40,
+                      spreadRadius: 8,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 172,
+                height: 172,
+                child: CustomPaint(
+                  painter: _FireRingPainter(progress: progress),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('\uD83D\uDD25', style: TextStyle(fontSize: 28)),
+                        SizedBox(height: 4),
+                        ShaderMask(
+                          shaderCallback: (bounds) => _fireGradient.createShader(bounds),
+                          blendMode: BlendMode.srcIn,
+                          child: Text(
+                            '$streak',
+                            style: GoogleFonts.inter(
+                              fontSize: 46,
+                              fontWeight: FontWeight.w800,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          'DAY STREAK',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: tokens.faintText,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: tokens.space12),
+          Text(
+            motivMsg,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: tokens.secondaryText,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeekCard(StreakState streakState, UpHealHomeTheme tokens) {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final days = <DateTime>[];
+    for (int i = 0; i < 7; i++) {
+      days.add(weekStart.add(Duration(days: i)));
+    }
+
+    int activeCount = 0;
+
+    return Container(
+      margin: EdgeInsets.fromLTRB(tokens.screenPadding, 0, tokens.screenPadding, tokens.space12),
+      padding: EdgeInsets.all(tokens.space16),
+      decoration: BoxDecoration(
+        color: tokens.cardFill,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow != null
+            ? [tokens.cardShadow!]
+            : const <BoxShadow>[],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'This week \u00b7 0 of 7 active',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: tokens.secondaryText,
+            ),
+          ),
+          SizedBox(height: tokens.space12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (int i = 0; i < 7; i++) ...[
+                _buildDayCell(days[i], streakState, tokens, refActive: (v) => activeCount += v ? 1 : 0),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDayCell(DateTime date, StreakState streakState, UpHealHomeTheme tokens, {required Function(bool) refActive}) {
+    final dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final label = dayLabels[date.weekday - 1];
+    final isToday = _isSameDay(date, DateTime.now());
+    final dayData = streakState.getStreakDay(date);
+    final isCompleted = dayData?.isCompleted ?? false;
+    final isFrozen = dayData?.completedActivities.contains('streak_freeze') ?? false;
+
+    if (isCompleted) refActive(true);
+
+    Widget cell;
+
+    if (isCompleted && isFrozen) {
+      cell = Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A3A5C),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(
+          child: Icon(LucideIcons.snowflake, size: 16, color: const Color(0xFF6BCB8E)),
+        ),
+      );
+    } else if (isCompleted) {
+      cell = Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          gradient: _fireGradient,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(
+          child: Text('\uD83D\uDD25', style: TextStyle(fontSize: 14)),
+        ),
+      );
+    } else if (isToday) {
+      cell = Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF8A6CF6), width: 1.5),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF8A6CF6),
+            ),
+          ),
+        ),
+      );
+    } else {
+      cell = Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: tokens.trackColor,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: tokens.faintText,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return cell;
+  }
+
+  Widget _buildStatRow(StreakState streakState, UpHealHomeTheme tokens) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(tokens.screenPadding, 0, tokens.screenPadding, tokens.space12),
+      child: Row(
+        children: [
+          Expanded(child: _buildStatCard('\uD83C\uDFC6', '${streakState.longestStreak}', 'Longest streak', tokens)),
+          SizedBox(width: tokens.space12),
+          Expanded(child: _buildStatCard('\uD83D\uDCC5', '${streakState.totalDaysActive}', 'Total active days', tokens)),
+          SizedBox(width: tokens.space12),
+          Expanded(child: _buildStatCard('\u2744\uFE0F', '${streakState.freezeTokens}', 'Freezes left', tokens)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String emoji, String value, String label, UpHealHomeTheme tokens) {
+    return AppCard(
+      padding: EdgeInsets.symmetric(vertical: tokens.space12, horizontal: tokens.space12),
+      child: Column(
+        children: [
+          Text(emoji, style: TextStyle(fontSize: 20)),
+          SizedBox(height: tokens.space8),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: tokens.primaryText,
+            ),
+          ),
+          SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              color: tokens.faintText,
+              fontWeight: FontWeight.w500,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFreezeCard(StreakState streakState, UpHealHomeTheme tokens) {
+    return Container(
+      margin: EdgeInsets.fromLTRB(tokens.screenPadding, 0, tokens.screenPadding, tokens.space12),
+      padding: EdgeInsets.all(tokens.space16),
+      decoration: BoxDecoration(
+        color: tokens.cardFill,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow != null
+            ? [tokens.cardShadow!]
+            : const <BoxShadow>[],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A3A5C),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Icon(LucideIcons.snowflake, size: 20, color: const Color(0xFF6BCB8E)),
+            ),
+          ),
+          SizedBox(width: tokens.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Streak Freeze${streakState.freezeTokens > 0 ? ' active' : ''}',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: tokens.primaryText,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  streakState.freezeTokens > 0
+                      ? 'Protects your streak on a missed day'
+                      : 'Earn freezes through streaks and challenges',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: tokens.faintText,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: tokens.space8),
+          GestureDetector(
+            onTap: () => _showFreezeDialog(context, streakState),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: tokens.space12, vertical: tokens.space8),
+              decoration: BoxDecoration(
+                gradient: UpHealHomeTheme.sharedAccentGradient,
+                borderRadius: BorderRadius.circular(tokens.pillRadius),
+              ),
+              child: Text(
+                'Manage',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMilestonesSection(StreakState streakState, UpHealHomeTheme tokens) {
+    final allMilestones = StreakMilestone.allMilestones;
+    final streak = streakState.currentStreak;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: tokens.screenPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(bottom: tokens.space12),
+            child: Text(
+              'Milestones',
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: tokens.primaryText,
+              ),
+            ),
+          ),
+          ...allMilestones.map((m) => _buildMilestoneRow(m, streak, streakState, tokens)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMilestoneRow(StreakMilestone m, int streak, StreakState streakState, UpHealHomeTheme tokens) {
+    final isUnlocked = m.isUnlocked;
+    final isNext = !isUnlocked && (streakState.nextMilestone?.daysRequired == m.daysRequired);
+    final progress = isUnlocked ? 1.0 : (streak / m.daysRequired).clamp(0.0, 1.0);
+
+    return Container(
+      margin: EdgeInsets.only(bottom: tokens.space8),
+      padding: EdgeInsets.all(tokens.space12),
+      decoration: BoxDecoration(
+        color: tokens.cardFill,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isNext
+              ? const Color(0xFF8A6CF6)
+              : tokens.dividerColor,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: isUnlocked
+                  ? const Color(0x33FFB23E)
+                  : isNext
+                      ? tokens.quickGroupsChip
+                      : tokens.trackColor,
+            ),
+            child: Center(
+              child: isUnlocked
+                  ? Text(m.emoji, style: TextStyle(fontSize: 20))
+                  : isNext
+                      ? Icon(LucideIcons.arrowRight, size: 18, color: tokens.quickGroupsIcon)
+                      : Icon(LucideIcons.lock, size: 16, color: tokens.faintText),
+            ),
+          ),
+          SizedBox(width: tokens.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      m.title,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: tokens.primaryText,
+                      ),
+                    ),
+                    if (isUnlocked) ...[
+                      SizedBox(width: 6),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0x33FFB23E),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Earned',
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: _fireA,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (isNext) ...[
+                      SizedBox(width: 6),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: tokens.quickGroupsChip,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Next',
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: tokens.quickGroupsIcon,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                SizedBox(height: 4),
+                if (!isUnlocked)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: progress.clamp(0.0, 1.0),
+                      backgroundColor: tokens.trackColor,
+                      color: isNext ? tokens.navActive : tokens.faintText,
+                      minHeight: 4,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(width: tokens.space8),
+          Text(
+            '${m.daysRequired}d',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isUnlocked ? _fireA : tokens.faintText,
+            ),
+          ),
         ],
       ),
     );
@@ -166,529 +648,49 @@ class _StreakScreenState extends State<StreakScreen>
     );
   }
 
-  void _showMilestoneDetails(BuildContext context, StreakMilestone milestone, StreakState streakState) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isUnlocked = streakState.currentStreak >= milestone.daysRequired;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              milestone.emoji,
-              style: const TextStyle(fontSize: 64),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              milestone.title,
-              style: GoogleFonts.inter(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              milestone.description,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                color: isDark ? Colors.white70 : AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: isUnlocked
-                    ? const Color(0xFF4CAF50).withOpacity(0.2)
-                    : const Color(0xFFFF6B35).withOpacity(0.2),
-              ),
-              child: Text(
-                isUnlocked
-                    ? '✓ Unlocked!'
-                    : '${milestone.daysRequired - streakState.currentStreak} days to unlock',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isUnlocked
-                      ? const Color(0xFF4CAF50)
-                      : const Color(0xFFFF6B35),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('⭐', style: TextStyle(fontSize: 18)),
-                const SizedBox(width: 8),
-                Text(
-                  '${milestone.xpReward} XP Reward',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFFFFD700),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStreakHeaderCard(BuildContext context, UserModel userModel, StreakState streakState) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currentStreak = streakState.currentStreak > 0 ? streakState.currentStreak : userModel.streakDays;
-    
-    return AnimatedBuilder(
-      animation: _pulseController,
-      builder: (context, child) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark
-                  ? [
-                      const Color(0xFFFF6B35).withOpacity(0.3),
-                      const Color(0xFFFF6B35).withOpacity(0.1),
-                    ]
-                  : [
-                      const Color(0xFFFF6B35).withOpacity(0.2),
-                      const Color(0xFFFF6B35).withOpacity(0.05),
-                    ],
-            ),
-            border: Border.all(
-              color: isDark
-                  ? const Color(0xFFFF6B35).withOpacity(0.3)
-                  : const Color(0xFFFF6B35).withOpacity(0.2),
-              width: 2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF6B35).withOpacity(0.1 + _pulseController.value * 0.1),
-                blurRadius: 20 + _pulseController.value * 10,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Animated flame icon
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF6B35), Color(0xFFFF8C42)],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFF6B35).withOpacity(0.3 + _pulseController.value * 0.2),
-                      blurRadius: 20 + _pulseController.value * 10,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  LucideIcons.flame,
-                  color: Colors.white,
-                  size: 50,
-                ),
-              )
-                  .animate(onPlay: (controller) => controller.repeat())
-                  .shimmer(
-                    duration: 2000.ms,
-                    color: Colors.white.withOpacity(0.3),
-                  ),
-              const SizedBox(height: 20),
-              // Streak count
-              Text(
-                '$currentStreak',
-                style: GoogleFonts.inter(
-                  fontSize: 64,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : AppColors.textPrimary,
-                ),
-              ).animate().fadeIn().scale(
-                    begin: const Offset(0.8, 0.8),
-                    duration: 400.ms,
-                    curve: Curves.elasticOut,
-                  ),
-              Text(
-                currentStreak == 1 ? 'Day Streak' : 'Days Streak',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  color: isDark ? Colors.white70 : AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              // XP Multiplier badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF6B35), Color(0xFFFF8C42)],
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('⚡', style: TextStyle(fontSize: 16)),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${streakState.streakMultiplier.toStringAsFixed(1)}x XP Bonus',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.3),
-              const SizedBox(height: 16),
-              Text(
-                _getStreakMessage(currentStreak),
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: isDark ? Colors.white70 : AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
-  }
-
-  Widget _buildTodayActivities(BuildContext context, StreakState streakState) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final todayActivities = streakState.todayActivities;
-    final isTodayCompleted = streakState.isTodayCompleted;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isTodayCompleted
-              ? [
-                  const Color(0xFF4CAF50).withOpacity(0.2),
-                  const Color(0xFF4CAF50).withOpacity(0.1),
-                ]
-              : isDark
-                  ? [
-                      Colors.white.withOpacity(0.1),
-                      Colors.white.withOpacity(0.05),
-                    ]
-                  : [
-                      AppColors.textPrimary.withOpacity(0.05),
-                      AppColors.textPrimary.withOpacity(0.02),
-                    ],
-        ),
-        border: Border.all(
-          color: isTodayCompleted
-              ? const Color(0xFF4CAF50).withOpacity(0.3)
-              : isDark
-                  ? Colors.white.withOpacity(0.2)
-                  : AppColors.textPrimary.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Row(
-                  children: [
-                    Icon(
-                      isTodayCompleted ? LucideIcons.checkCircle : LucideIcons.target,
-                      color: isTodayCompleted
-                          ? const Color(0xFF4CAF50)
-                          : (isDark ? Colors.white : AppColors.textPrimary),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Today\'s Progress',
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : AppColors.textPrimary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isTodayCompleted)
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: const Color(0xFF4CAF50),
-                    ),
-                    child: Text(
-                      '✓ Streak Secured!',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (todayActivities.isEmpty)
-            Center(
-              child: Column(
-                children: [
-                  Icon(
-                    LucideIcons.sunrise,
-                    size: 40,
-                    color: isDark ? Colors.white38 : AppColors.textSecondary.withOpacity(0.5),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Complete any activity to secure today\'s streak!',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: isDark ? Colors.white54 : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: todayActivities
-                  .map((activity) => _buildActivityChip(context, activity, isDark))
-                  .toList(),
-            ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.1, end: 0);
-  }
-
-  Widget _buildActivityChip(BuildContext context, StreakActivityType activity, bool isDark) {
-    final activityInfo = _getActivityInfo(activity);
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: activityInfo.color.withOpacity(0.2),
-        border: Border.all(
-          color: activityInfo.color.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            activityInfo.icon,
-            size: 16,
-            color: activityInfo.color,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            activityInfo.label,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: activityInfo.color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  _ActivityInfo _getActivityInfo(StreakActivityType activity) {
-    switch (activity) {
-      case StreakActivityType.journaling:
-        return _ActivityInfo('Journal', LucideIcons.bookOpen, const Color(0xFF9C27B0));
-      case StreakActivityType.assessment:
-        return _ActivityInfo('Assessment', LucideIcons.clipboardCheck, const Color(0xFF2196F3));
-      case StreakActivityType.challenge:
-        return _ActivityInfo('Challenge', LucideIcons.swords, const Color(0xFFFF9800));
-      case StreakActivityType.sleepTracking:
-        return _ActivityInfo('Sleep', LucideIcons.moon, const Color(0xFF673AB7));
-      case StreakActivityType.stepGoal:
-        return _ActivityInfo('Steps', LucideIcons.footprints, const Color(0xFF4CAF50));
-      case StreakActivityType.focusSession:
-        return _ActivityInfo('Focus', LucideIcons.target, const Color(0xFFE91E63));
-      case StreakActivityType.meditation:
-        return _ActivityInfo('Mindfulness', LucideIcons.brain, const Color(0xFF00BCD4));
-      case StreakActivityType.socialEngagement:
-        return _ActivityInfo('Community', LucideIcons.users, const Color(0xFF3F51B5));
-      case StreakActivityType.miniGame:
-        return _ActivityInfo('Game', LucideIcons.gamepad2, const Color(0xFFFFEB3B));
-    }
-  }
-
-  Widget _buildTipsSection(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [
-                  Colors.white.withOpacity(0.1),
-                  Colors.white.withOpacity(0.05),
-                ]
-              : [
-                  AppColors.textPrimary.withOpacity(0.05),
-                  AppColors.textPrimary.withOpacity(0.02),
-                ],
-        ),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withOpacity(0.2)
-              : AppColors.textPrimary.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                LucideIcons.lightbulb,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Keep Your Streak Going!',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildTipItem(
-            context,
-            'Complete daily missions to maintain your streak',
-            LucideIcons.target,
-          ),
-          const SizedBox(height: 12),
-          _buildTipItem(
-            context,
-            'Track your steps and sleep to earn bonus XP',
-            LucideIcons.footprints,
-          ),
-          const SizedBox(height: 12),
-          _buildTipItem(
-            context,
-            'Journal daily to reflect and grow',
-            LucideIcons.bookOpen,
-          ),
-          const SizedBox(height: 12),
-          _buildTipItem(
-            context,
-            'Use freeze tokens when you need a break',
-            LucideIcons.snowflake,
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0);
-  }
-
-  Widget _buildTipItem(BuildContext context, String text, IconData icon) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          icon,
-          color: const Color(0xFFFF6B35),
-          size: 20,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: isDark ? Colors.white70 : AppColors.textSecondary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _getStreakMessage(int streakDays) {
-    if (streakDays == 0) {
-      return 'Start your journey today! Complete missions to build your streak.';
-    } else if (streakDays < 7) {
-      return 'Great start! Keep going to reach your first week milestone.';
-    } else if (streakDays < 14) {
-      return '🔥 One week strong! You\'re building a powerful habit.';
-    } else if (streakDays < 30) {
-      return '⚔️ Week Warrior! Push through to Month Master status.';
-    } else if (streakDays < 90) {
-      return '🏆 Month Master! You\'re in the top 10% of users.';
-    } else if (streakDays < 180) {
-      return '🌟 Quarter Champion! Incredible dedication.';
-    } else if (streakDays < 365) {
-      return '💪 Half Year Hero! Legend status awaits.';
-    } else {
-      return '👑 YEAR LEGEND! You are truly unstoppable!';
-    }
-  }
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-/// Helper class for activity info
-class _ActivityInfo {
-  final String label;
-  final IconData icon;
-  final Color color;
+class _FireRingPainter extends CustomPainter {
+  final double progress;
 
-  _ActivityInfo(this.label, this.icon, this.color);
+  _FireRingPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 14;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    final trackPaint = Paint()
+      ..color = const Color(0x1FFFFFFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, trackPaint);
+
+    if (progress <= 0) return;
+
+    final sweepAngle = 2 * math.pi * progress;
+
+    final gradientPaint = Paint()
+      ..shader = _fireGradient.createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      sweepAngle,
+      false,
+      gradientPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FireRingPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
-

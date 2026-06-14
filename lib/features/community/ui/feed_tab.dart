@@ -13,6 +13,7 @@ import '../../../constants/app_colors.dart';
 import '../../../models/user_model.dart';
 import '../data/community_models.dart';
 import '../services/community_repository.dart';
+import 'community_actions.dart';
 import 'community_decor.dart';
 import 'compose_post_screen.dart';
 
@@ -64,6 +65,9 @@ class _FeedTabState extends State<FeedTab> {
   bool _loadingMore = false;
   bool _hasMore = true;
   final Set<String> _likedPostIds = {};
+  CommunityPostFilter _filter = CommunityPostFilter.all;
+
+  String? get _currentUserId => _repo.currentUserId;
 
   @override
   void initState() {
@@ -161,6 +165,41 @@ class _FeedTabState extends State<FeedTab> {
     }
   }
 
+  List<Map<String, dynamic>> _applyFilter(List<Map<String, dynamic>> posts) {
+    var result = List<Map<String, dynamic>>.from(posts);
+
+    switch (_filter) {
+      case CommunityPostFilter.myPosts:
+        final uid = _currentUserId;
+        if (uid != null) {
+          result = result.where((p) => p['author_id'] == uid).toList();
+        }
+        break;
+      case CommunityPostFilter.newest:
+        result.sort((a, b) {
+          final da = DateTime.tryParse(a['created_at'] as String? ?? '');
+          final db = DateTime.tryParse(b['created_at'] as String? ?? '');
+          return (db ?? DateTime.now()).compareTo(da ?? DateTime.now());
+        });
+        break;
+      case CommunityPostFilter.mostLiked:
+        result.sort((a, b) {
+          final la = (a['likes_count'] as num?)?.toInt() ?? 0;
+          final lb = (b['likes_count'] as num?)?.toInt() ?? 0;
+          final cmp = lb.compareTo(la);
+          if (cmp != 0) return cmp;
+          final da = DateTime.tryParse(a['created_at'] as String? ?? '');
+          final db = DateTime.tryParse(b['created_at'] as String? ?? '');
+          return (db ?? DateTime.now()).compareTo(da ?? DateTime.now());
+        });
+        break;
+      case CommunityPostFilter.all:
+        break;
+    }
+
+    return result;
+  }
+
   Future<void> _loadMore() async {
     if (!mounted || _loadingMore || !_hasMore || _nextCursor == null) return;
     setState(() => _loadingMore = true);
@@ -247,6 +286,70 @@ class _FeedTabState extends State<FeedTab> {
     }
   }
 
+  Future<void> _editPost(String postId, String currentBody) async {
+    final edited = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EditPostSheet(
+        currentBody: currentBody,
+        onSave: (newBody) => _repo.updatePost(
+          postId: postId,
+          body: newBody,
+        ),
+      ),
+    );
+
+    if (edited == true && mounted) {
+      _loadFeed();
+    }
+  }
+
+  Future<void> _deletePost(String postId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete this post?',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+        content: Text(
+          'Comments and likes on this post may also be removed.',
+          style: GoogleFonts.inter(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel', style: GoogleFonts.inter()),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.red),
+            child: Text('Delete', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _repo.deletePost(postId);
+      if (!mounted) return;
+      setState(() {
+        _posts.removeWhere((p) => p['id'] == postId);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not delete post. Try again.',
+              style: GoogleFonts.inter()),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _showCommentsSheet(String postId) async {
     final uid = _repo.currentUserId;
     if (uid == null && mounted) {
@@ -298,6 +401,9 @@ class _FeedTabState extends State<FeedTab> {
     if (_loading) return const _ShimmerFeed();
     if (_error != null) return _ErrorState(onRetry: _loadFeed);
 
+    final shownPosts = _applyFilter(_posts);
+    final uid = _currentUserId;
+
     return RefreshIndicator(
       color: AppColors.purple,
       onRefresh: _loadFeed,
@@ -308,18 +414,34 @@ class _FeedTabState extends State<FeedTab> {
         children: [
           if (_isGuest) _GuestBanner(onSignIn: () {}),
           const _SupportBanner(),
-          const SizedBox(height: 14),
-          if (_posts.isEmpty)
+          const SizedBox(height: 12),
+          CommunityFilterChips(
+            current: _filter,
+            onChanged: (CommunityPostFilter f) => setState(() => _filter = f),
+          ),
+          const SizedBox(height: 12),
+          if (shownPosts.isEmpty && _posts.isNotEmpty)
+            _FilterEmptyState(filter: _filter)
+          else if (shownPosts.isEmpty)
             const _EmptyFeedState()
           else
-            for (var i = 0; i < _posts.length; i++)
+            for (var i = 0; i < shownPosts.length; i++) ...[
               _FeedPostCard(
-                post: _posts[i],
+                post: shownPosts[i],
                 index: i,
-                liked: _likedPostIds.contains(_posts[i]['id']),
-                onLike: () => _toggleLike(_posts[i]['id'] as String),
-                onComment: () => _showCommentsSheet(_posts[i]['id'] as String),
+                liked: _likedPostIds.contains(shownPosts[i]['id']),
+                currentUserId: uid,
+                onLike: () => _toggleLike(shownPosts[i]['id'] as String),
+                onComment: () =>
+                    _showCommentsSheet(shownPosts[i]['id'] as String),
+                onPostEdit: () => _editPost(
+                  shownPosts[i]['id'] as String,
+                  (shownPosts[i]['content'] as String? ?? ''),
+                ),
+                onPostDelete: () =>
+                    _deletePost(shownPosts[i]['id'] as String),
               ),
+            ],
           if (_loadingMore)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 20),
@@ -334,7 +456,7 @@ class _FeedTabState extends State<FeedTab> {
                 ),
               ),
             ),
-          if (!_hasMore && _posts.isNotEmpty) const _CaughtUpFooter(),
+          if (!_hasMore && shownPosts.isNotEmpty) const _CaughtUpFooter(),
         ],
       ),
     );
@@ -452,15 +574,21 @@ class _FeedPostCard extends StatelessWidget {
     required this.post,
     required this.index,
     this.liked = false,
+    this.currentUserId,
     this.onLike,
     this.onComment,
+    this.onPostEdit,
+    this.onPostDelete,
   });
 
   final Map<String, dynamic> post;
   final int index;
   final bool liked;
+  final String? currentUserId;
   final VoidCallback? onLike;
   final VoidCallback? onComment;
+  final VoidCallback? onPostEdit;
+  final VoidCallback? onPostDelete;
 
   String _timeAgo(String? createdAt) {
     if (createdAt == null) return '';
@@ -626,7 +754,11 @@ class _FeedPostCard extends StatelessWidget {
                     ],
                   ),
                 ),
-
+                PostActionMenu(
+                  isOwner: currentUserId != null && post['author_id'] == currentUserId,
+                  onEdit: onPostEdit,
+                  onDelete: onPostDelete,
+                ),
               ],
             ),
             // ── Body ───────────────────────────────────────────────────────
@@ -982,6 +1114,85 @@ class _SupportBanner extends StatelessWidget {
 
 // ── Empty / error / footer states ─────────────────────────────────────────────
 
+class _FilterEmptyState extends StatelessWidget {
+  const _FilterEmptyState({required this.filter});
+  final CommunityPostFilter filter;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final (icon, title, subtitle) = switch (filter) {
+      CommunityPostFilter.myPosts => (
+        LucideIcons.pencil,
+        "You haven't posted yet.",
+        'Share your first thought with the community.',
+      ),
+      CommunityPostFilter.mostLiked => (
+        LucideIcons.heart,
+        'No liked posts yet.',
+        'Engage with posts to see them here.',
+      ),
+      _ => (
+        LucideIcons.feather,
+        'No posts yet. Start the conversation.',
+        '',
+      ),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 56),
+      child: Column(
+        children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.purple.withValues(alpha: 0.15),
+                  AppColors.teal.withValues(alpha: 0.1),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Icon(icon, size: 40,
+                  color: AppColors.purple.withValues(alpha: 0.7)),
+            ),
+          ).animate().scale(
+            duration: 600.ms,
+            curve: Curves.elasticOut,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : const Color(0xFF111827),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                height: 1.5,
+                color: isDark ? Colors.white54 : const Color(0xFF6B7280),
+              ),
+            ),
+          ],
+        ],
+      ),
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
+  }
+}
+
 class _EmptyFeedState extends StatelessWidget {
   const _EmptyFeedState();
 
@@ -1185,11 +1396,77 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     }
   }
 
+  String? get _currentUserId => widget.repo.currentUserId;
+
   Future<void> _refreshComments() async {
     try {
       final comments = await widget.repo.fetchComments(widget.postId);
       if (mounted) setState(() => _comments = comments);
     } catch (_) {}
+  }
+
+  Future<void> _editComment(CommunityComment comment) async {
+    final edited = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EditCommentSheet(
+        currentBody: comment.body,
+        onSave: (newBody) => widget.repo.updateComment(
+          commentId: comment.id,
+          body: newBody,
+        ),
+      ),
+    );
+
+    if (edited == true && mounted) {
+      _refreshComments();
+    }
+  }
+
+  Future<void> _deleteComment(CommunityComment comment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete this comment?',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+        content: Text(
+          'This cannot be undone.',
+          style: GoogleFonts.inter(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel', style: GoogleFonts.inter()),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.red),
+            child: Text('Delete', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await widget.repo.deleteComment(comment.id);
+      if (!mounted) return;
+      setState(() {
+        _comments.removeWhere((c) => c.id == comment.id);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not delete comment. Try again.',
+              style: GoogleFonts.inter()),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -1311,6 +1588,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                             itemCount: _comments.length,
                             itemBuilder: (_, i) {
                               final c = _comments[i];
+                              final isOwner = _currentUserId != null &&
+                                  c.authorId == _currentUserId;
                               return Padding(
                                 padding:
                                     const EdgeInsets.only(bottom: 12),
@@ -1356,6 +1635,12 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                                   TextOverflow.ellipsis,
                                             ),
                                           ),
+                                          if (isOwner)
+                                            CommentActionMenu(
+                                              isOwner: true,
+                                              onEdit: () => _editComment(c),
+                                              onDelete: () => _deleteComment(c),
+                                            ),
                                         ],
                                       ),
                                       const SizedBox(height: 8),

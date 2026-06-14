@@ -182,7 +182,7 @@ class ProfileScreen extends StatelessWidget {
                   iconTint: const Color(0xFF9B87F5),
                   title: 'Browse Avatars',
                   subtitle: 'Explore the 3D avatars available for your profile',
-                  onTap: () => const AvatarTestRoute().push<void>(context),
+                  onTap: () => const AvatarRoute().push<void>(context),
                 ),
                 const SizedBox(height: 18),
                 _LogoutButton(

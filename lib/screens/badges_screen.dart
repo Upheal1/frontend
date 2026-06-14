@@ -1,193 +1,122 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
-import '../constants/app_colors.dart';
 import '../models/badge_model.dart';
-import '../navigation/navigation_helpers.dart';
 import '../services/badge_provider.dart';
+import '../shared/theme/upheal_home_theme.dart';
+import '../shared/widgets/upheal_home_widgets.dart';
 
-class BadgesScreen extends StatelessWidget {
+const Color _goldA = Color(0xFFFFD66B);
+const Color _goldB = Color(0xFFFF9F43);
+const LinearGradient _goldGradient = LinearGradient(
+  colors: [_goldA, _goldB],
+);
+
+const Color _rarityCommon = Color(0xFF9FB4FF);
+const Color _rarityRare = Color(0xFFC79BFF);
+const Color _rarityEpic = Color(0xFFFF9BD2);
+const Color _rarityLegend = Color(0xFFFFCF6B);
+
+enum _BadgeCategory { all, streaks, focus, mindful, social }
+
+const Map<String, _BadgeCategory> _badgeCategoryMap = {
+  'streak': _BadgeCategory.streaks,
+  'tasks': _BadgeCategory.focus,
+  'free': _BadgeCategory.mindful,
+};
+
+const Map<String, String> _badgeEmoji = {
+  'streak_3': '\uD83D\uDD25',
+  'streak_7': '\uD83D\uDD25',
+  'streak_14': '\uD83D\uDD25',
+  'streak_30': '\uD83D\uDD25',
+  'tasks_5': '\u2705',
+  'tasks_20': '\u2705',
+  'tasks_50': '\u2705',
+  'free_3': '\uD83C\uDF3F',
+  'free_7': '\uD83C\uDF3F',
+  'free_30': '\uD83C\uDF3F',
+};
+
+const Map<String, int> _badgeRarityTier = {
+  'streak_3': 0,
+  'free_3': 0,
+  'tasks_5': 0,
+  'streak_7': 1,
+  'free_7': 1,
+  'tasks_20': 1,
+  'streak_14': 2,
+  'free_30': 2,
+  'tasks_50': 2,
+  'streak_30': 3,
+};
+
+const List<Color> _rarityColors = [_rarityCommon, _rarityRare, _rarityEpic, _rarityLegend];
+const List<String> _rarityLabels = ['Common', 'Rare', 'Epic', 'Legend'];
+
+class BadgesScreen extends StatefulWidget {
   const BadgesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF0B0D12) : theme.scaffoldBackgroundColor;
-
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            LucideIcons.arrowLeft,
-            color: isDark ? Colors.white : AppColors.textPrimary,
-          ),
-          onPressed: () => safeGoBack(context),
-        ),
-        title: Text(
-          'Badges',
-          style: GoogleFonts.inter(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: isDark ? Colors.white : AppColors.textPrimary,
-          ),
-        ),
-      ),
-      body: _BadgesContent(),
-    );
-  }
+  State<BadgesScreen> createState() => _BadgesScreenState();
 }
 
-class _BadgesContent extends StatelessWidget {
-  const _BadgesContent();
+class _BadgesScreenState extends State<BadgesScreen> {
+  _BadgeCategory _filter = _BadgeCategory.all;
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<BadgeProvider?>(
-      builder: (context, provider, child) {
-        if (provider == null) {
-          return const _LoadingState();
-        }
+    final tokens = Theme.of(context).upHealHome;
+    final badgeProvider = context.watch<BadgeProvider>();
+    final allBadges = badgeProvider.badges;
+    final earned = badgeProvider.earned;
+    final earnedCount = earned.length;
+    final totalCount = allBadges.length;
 
-        try {
-          final earned = provider.earned;
-          final locked = provider.locked;
+    final filtered = _applyFilter(allBadges, _filter);
 
-          if (earned.isEmpty && locked.isEmpty) {
-            return _EmptyBadgesState();
-          }
-
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-            children: [
-              _SectionHeader(
-                title: 'Earned',
-                subtitle: '${earned.length} unlocked',
-              ),
-              const SizedBox(height: 12),
-              if (earned.isEmpty)
-                const _EmptySection(
-                  title: 'No badges yet',
-                  subtitle: 'Complete streaks and challenges to unlock badges.',
-                )
-              else
-                _BadgesGrid(badges: earned, locked: false),
-              const SizedBox(height: 18),
-              _SectionHeader(
-                title: 'Locked',
-                subtitle: '${locked.length} remaining',
-              ),
-              const SizedBox(height: 12),
-              if (locked.isEmpty)
-                const _EmptySection(
-                  title: 'All unlocked!',
-                  subtitle: 'You\'ve collected all available badges.',
-                )
-              else
-                _BadgesGrid(badges: locked, locked: true),
+    return UpHealScaffold(
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            _buildHeader(tokens),
+            SliverToBoxAdapter(child: _buildSummaryCard(earnedCount, totalCount, tokens)),
+            SliverToBoxAdapter(child: _buildFilterRow(tokens)),
+            if (filtered.where((b) => b.isUnlocked).isNotEmpty) ...[
+              SliverToBoxAdapter(child: _buildSectionHeader('Earned', tokens)),
+              _buildBadgeGrid(filtered.where((b) => b.isUnlocked).toList(), true, tokens),
             ],
-          );
-        } catch (e, stack) {
-          debugPrint('BadgesScreen error: $e');
-          debugPrint('Stack: $stack');
-          return _ErrorState(message: e.toString());
-        }
-      },
+            if (filtered.where((b) => !b.isUnlocked).isNotEmpty) ...[
+              SliverToBoxAdapter(child: _buildSectionHeader('Locked', tokens)),
+              _buildBadgeGrid(filtered.where((b) => !b.isUnlocked).toList(), false, tokens),
+            ],
+            SliverToBoxAdapter(child: SizedBox(height: tokens.screenPadding)),
+          ],
+        ),
+      ),
     );
   }
-}
 
-class _LoadingState extends StatelessWidget {
-  const _LoadingState();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.purple.withValues(alpha: 0.3),
-                width: 3,
-              ),
-            ),
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.purple),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Loading badges...',
-            style: GoogleFonts.inter(
-              color: isDark ? Colors.white70 : AppColors.textSecondary,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 300.ms);
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  final String message;
-
-  const _ErrorState({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Center(
+  SliverToBoxAdapter _buildHeader(UpHealHomeTheme tokens) {
+    return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        padding: EdgeInsets.fromLTRB(4, tokens.space8, tokens.space12, 0),
+        child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                LucideIcons.alertCircle,
-                color: Colors.red,
-                size: 40,
-              ),
+            IconButton(
+              icon: Icon(LucideIcons.chevronLeft, color: tokens.primaryText),
+              onPressed: () => Navigator.maybePop(context),
+              tooltip: 'Back',
             ),
-            const SizedBox(height: 24),
             Text(
-              'Unable to load badges',
+              'Badges',
               style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Please try again later',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: isDark ? Colors.white60 : AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+                color: tokens.primaryText,
+                fontSize: 20,
               ),
             ),
           ],
@@ -195,279 +124,514 @@ class _ErrorState extends StatelessWidget {
       ),
     );
   }
-}
 
-class _EmptyBadgesState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildSummaryCard(int earned, int total, UpHealHomeTheme tokens) {
+    final progress = total > 0 ? earned / total : 0.0;
+    final rankLabel = _rankLabel(earned, total);
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+    return Container(
+      margin: EdgeInsets.all(tokens.screenPadding),
+      padding: EdgeInsets.all(tokens.space20),
+      decoration: BoxDecoration(
+        color: tokens.cardFill,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow != null
+            ? [tokens.cardShadow!]
+            : const <BoxShadow>[],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: _goldGradient,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: _goldA.withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Text('\uD83C\uDFC6', style: TextStyle(fontSize: 26)),
+            ),
+          ),
+          SizedBox(width: tokens.space16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$earned / $total earned',
+                  style: GoogleFonts.inter(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.primaryText,
+                    height: 1,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  rankLabel,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: tokens.faintText,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: tokens.space8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress.clamp(0.0, 1.0),
+                    backgroundColor: tokens.trackColor,
+                    minHeight: 6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterRow(UpHealHomeTheme tokens) {
+    final filters = [
+      (_BadgeCategory.all, 'All'),
+      (_BadgeCategory.streaks, 'Streaks'),
+      (_BadgeCategory.focus, 'Focus'),
+      (_BadgeCategory.mindful, 'Mindful'),
+      (_BadgeCategory.social, 'Social'),
+    ];
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(tokens.screenPadding, 0, 0, tokens.space12),
+      child: SizedBox(
+        height: 36,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: filters.length,
+          separatorBuilder: (_, __) => SizedBox(width: tokens.space8),
+          itemBuilder: (context, index) {
+            final f = filters[index];
+            final selected = _filter == f.$1;
+            return GestureDetector(
+              onTap: () => setState(() => _filter = f.$1),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(horizontal: tokens.space16),
+                decoration: BoxDecoration(
+                  gradient: selected
+                      ? UpHealHomeTheme.sharedAccentGradient
+                      : null,
+                  color: selected ? null : tokens.cardFill,
+                  borderRadius: BorderRadius.circular(tokens.pillRadius),
+                  border: selected ? null : Border.all(color: tokens.cardBorder),
+                ),
+                child: Center(
+                  child: Text(
+                    f.$2,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: selected
+                          ? Colors.white
+                          : tokens.secondaryText,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  SliverPadding _buildBadgeGrid(List<BadgeModel> badges, bool earned, UpHealHomeTheme tokens) {
+    return SliverPadding(
+      padding: EdgeInsets.symmetric(horizontal: tokens.screenPadding),
+      sliver: SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: tokens.space12,
+          mainAxisSpacing: tokens.space12,
+          childAspectRatio: 0.95,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final badge = badges[index];
+            final tier = _badgeRarityTier[badge.id] ?? 0;
+            return _BadgeTile(
+              badge: badge,
+              unlocked: earned,
+              rarityColor: _rarityColors[tier],
+              rarityLabel: _rarityLabels[tier],
+              emoji: _badgeEmoji[badge.id] ?? '\uD83C\uDFC6',
+              onTap: () {
+                HapticFeedback.selectionClick();
+                _showBadgeSheet(context, badge, tier, tokens);
+              },
+            );
+          },
+          childCount: badges.length,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, UpHealHomeTheme tokens) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(tokens.screenPadding, 4.0, tokens.screenPadding, tokens.space12),
+      child: Text(
+        title,
+        style: GoogleFonts.inter(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: tokens.primaryText,
+        ),
+      ),
+    );
+  }
+
+  void _showBadgeSheet(BuildContext context, BadgeModel badge, int tier, UpHealHomeTheme tokens) {
+    final isUnlocked = badge.isUnlocked;
+    final rarityColor = _rarityColors[tier];
+    final rarityLabel = _rarityLabels[tier];
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        margin: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(tokens.space20),
+        decoration: BoxDecoration(
+          color: tokens.cardFill,
+          borderRadius: BorderRadius.circular(tokens.cardRadius),
+          border: Border.all(color: tokens.cardBorder),
+        ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
-                color: AppColors.purple.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
+                gradient: isUnlocked
+                    ? LinearGradient(
+                        colors: [rarityColor, rarityColor.withValues(alpha: 0.6)],
+                      )
+                    : LinearGradient(
+                        colors: [tokens.faintText, tokens.faintText.withValues(alpha: 0.4)],
+                      ),
+                boxShadow: tier >= 3 && isUnlocked
+                    ? [
+                        BoxShadow(
+                          color: rarityColor.withValues(alpha: 0.4),
+                          blurRadius: 20,
+                          spreadRadius: 4,
+                        ),
+                      ]
+                    : null,
               ),
-              child: const Icon(
-                LucideIcons.award,
-                color: AppColors.purple,
-                size: 48,
+              child: Center(
+                child: Text(
+                  _badgeEmoji[badge.id] ?? '\uD83C\uDFC6',
+                  style: TextStyle(fontSize: 32),
+                ),
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: tokens.space16),
             Text(
-              'No Badges Yet',
+              badge.title,
               style: GoogleFonts.inter(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: tokens.primaryText,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: tokens.space12, vertical: 3),
+              decoration: BoxDecoration(
+                color: rarityColor.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(tokens.pillRadius),
+              ),
+              child: Text(
+                rarityLabel,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: rarityColor,
+                ),
+              ),
+            ),
+            SizedBox(height: tokens.space12),
             Text(
-              'Complete streaks and challenges to unlock your first badge!',
+              badge.description,
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
-                fontSize: 14,
-                color: isDark ? Colors.white60 : AppColors.textSecondary,
+                fontSize: 13,
+                color: tokens.secondaryText,
                 height: 1.5,
               ),
             ),
+            SizedBox(height: tokens.space16),
+            if (isUnlocked && badge.unlockedAt != null)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(LucideIcons.calendar, size: 14, color: tokens.faintText),
+                  SizedBox(width: 6),
+                  Text(
+                    'Earned on ${_formatDate(badge.unlockedAt!)}',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: tokens.faintText,
+                    ),
+                  ),
+                ],
+              ),
+            if (!isUnlocked)
+              Column(
+                children: [
+                  Text(
+                    'How to unlock',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: tokens.faintText,
+                    ),
+                  ),
+                  SizedBox(height: tokens.space8),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: tokens.space12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: tokens.quickGroupsChip,
+                      borderRadius: BorderRadius.circular(tokens.pillRadius),
+                    ),
+                    child: Text(
+                      'Required: ${badge.requiredValue} ${_conditionLabel(badge.id)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: tokens.quickGroupsIcon,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
     );
   }
-}
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _SectionHeader({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Row(
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: isDark ? Colors.white : AppColors.textPrimary,
-          ),
-        ),
-        const Spacer(),
-        Text(
-          subtitle,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: isDark ? Colors.white54 : AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
+  List<BadgeModel> _applyFilter(List<BadgeModel> badges, _BadgeCategory filter) {
+    if (filter == _BadgeCategory.all) return badges;
+    if (filter == _BadgeCategory.social) return [];
+    return badges.where((b) {
+      final prefix = b.id.split('_').first;
+      return _badgeCategoryMap[prefix] == filter;
+    }).toList();
   }
-}
 
-class _EmptySection extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _EmptySection({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: (isDark ? Colors.white : AppColors.surface).withValues(alpha: 0.5),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white70 : AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: isDark ? Colors.white54 : AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 300.ms);
+  String _rankLabel(int earned, int total) {
+    if (total == 0) return '';
+    if (earned >= total) return 'Level 4 \u00b7 Legend \u2014 All badges collected!';
+    if (earned >= total * 0.75) return 'Level 3 \u00b7 Collector \u2014 ${total - earned} more to Platinum';
+    if (earned >= total * 0.5) return 'Level 2 \u00b7 Seeker \u2014 ${total - earned} more to Collector';
+    if (earned >= total * 0.25) return 'Level 1 \u00b7 Beginner \u2014 ${total - earned} more to Seeker';
+    return 'Level 0 \u00b7 Newcomer \u2014 ${total - earned} more to Beginner';
   }
-}
 
-class _BadgesGrid extends StatelessWidget {
-  final List<BadgeModel> badges;
-  final bool locked;
+  String _conditionLabel(String id) {
+    if (id.startsWith('streak')) return 'day streak';
+    if (id.startsWith('tasks')) return 'tasks completed';
+    if (id.startsWith('free')) return 'addiction-free days';
+    return '';
+  }
 
-  const _BadgesGrid({required this.badges, required this.locked});
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.82,
-      ),
-      itemCount: badges.length,
-      itemBuilder: (context, index) {
-        final badge = badges[index];
-        return _BadgeTile(badge: badge, isLocked: locked)
-            .animate()
-            .fadeIn(duration: 220.ms, delay: (index * 35).ms)
-            .scale(begin: const Offset(0.98, 0.98), end: const Offset(1, 1));
-      },
-    );
+  String _formatDate(DateTime dt) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
 }
 
 class _BadgeTile extends StatelessWidget {
   final BadgeModel badge;
-  final bool isLocked;
+  final bool unlocked;
+  final Color rarityColor;
+  final String rarityLabel;
+  final String emoji;
+  final VoidCallback onTap;
 
-  const _BadgeTile({required this.badge, required this.isLocked});
+  const _BadgeTile({
+    required this.badge,
+    required this.unlocked,
+    required this.rarityColor,
+    required this.rarityLabel,
+    required this.emoji,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final onSurface = isDark ? Colors.white : AppColors.textPrimary;
-    final surfaceColor = isDark ? const Color(0xFF1A1A2E) : Colors.white;
+    final tokens = Theme.of(context).upHealHome;
 
-    final glow = !isLocked;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: surfaceColor.withValues(alpha: 0.55),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        boxShadow: glow
-            ? [
-                BoxShadow(
-                  color: AppColors.purple.withValues(alpha: 0.28),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-      ),
-      child: Opacity(
-        opacity: isLocked ? 0.45 : 1,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: tokens.cardFill,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: unlocked
+                ? rarityColor.withValues(alpha: 0.3)
+                : tokens.cardBorder,
+          ),
+          boxShadow: unlocked && tokens.cardShadow != null
+              ? [tokens.cardShadow!]
+              : const <BoxShadow>[],
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Expanded(
-              child: Center(
-                child: _BadgeIcon(path: badge.iconPath ?? '', locked: isLocked),
+            if (!unlocked)
+              ColorFiltered(
+                colorFilter: const ColorFilter.matrix(<double>[
+                  0.21, 0.71, 0.07, 0, 0,
+                  0.21, 0.71, 0.07, 0, 0,
+                  0.21, 0.71, 0.07, 0, 0,
+                  0,    0,    0,    0.45, 0,
+                ]),
+                child: _medal(tokens),
+              )
+            else
+              _medal(tokens),
+            SizedBox(height: tokens.space8),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                badge.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: unlocked
+                      ? tokens.primaryText
+                      : tokens.faintText,
+                ),
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              badge.title ?? 'Unknown',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: onSurface,
+            if (unlocked)
+              Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: rarityColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    rarityLabel,
+                    style: GoogleFonts.inter(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      color: rarityColor,
+                    ),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              isLocked ? 'Unlock at ${badge.requiredValue}' : 'Unlocked',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: isLocked
-                    ? onSurface.withValues(alpha: 0.6)
-                    : AppColors.purple,
+            if (!unlocked) ...[
+              SizedBox(height: 4),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Text(
+                  '${badge.requiredValue} ${_shortUnit(badge.id)}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    color: tokens.faintText,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
   }
-}
 
-class _BadgeIcon extends StatelessWidget {
-  final String path;
-  final bool locked;
+  Widget _medal(UpHealHomeTheme tokens) {
+    final isLegend = rarityLabel == 'Legend';
 
-  const _BadgeIcon({required this.path, required this.locked});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    Widget buildFallback() {
-      return Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: (isDark ? Colors.white : AppColors.surface).withValues(alpha: 0.08),
-        ),
+    return Container(
+      width: 62,
+      height: 62,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: unlocked
+            ? LinearGradient(
+                colors: [rarityColor, rarityColor.withValues(alpha: 0.6)],
+              )
+            : LinearGradient(
+                colors: [tokens.faintText.withValues(alpha: 0.3), tokens.faintText.withValues(alpha: 0.15)],
+              ),
+        boxShadow: isLegend && unlocked
+            ? [
+                BoxShadow(
+                  color: rarityColor.withValues(alpha: 0.35),
+                  blurRadius: 14,
+                  spreadRadius: 2,
+                ),
+              ]
+            : null,
+      ),
+      child: Stack(
         alignment: Alignment.center,
-        child: Text(
-          locked ? '🔒' : '🏅',
-          style: const TextStyle(fontSize: 22),
-        ),
-      );
-    }
-
-    if (path.isEmpty) {
-      return buildFallback();
-    }
-
-    return Image.asset(
-      path,
-      width: 52,
-      height: 52,
-      fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => buildFallback(),
+        children: [
+          Text(
+            unlocked ? emoji : '\uD83D\uDD12',
+            style: TextStyle(fontSize: unlocked ? 26 : 20),
+          ),
+          if (!unlocked)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: tokens.faintText.withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.lock, size: 9, color: Colors.white),
+              ),
+            ),
+        ],
+      ),
     );
+  }
+
+  String _shortUnit(String id) {
+    if (id.startsWith('streak')) return 'days';
+    if (id.startsWith('tasks')) return 'tasks';
+    if (id.startsWith('free')) return 'days';
+    return '';
   }
 }
