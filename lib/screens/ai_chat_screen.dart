@@ -211,7 +211,7 @@ class _AiChatScreenState extends State<AiChatScreen>
     final bg = isDark ? const Color(0xFF0B0D12) : _bg;
     final onCard = isDark ? Colors.white : _mountain;
     final subtle = isDark ? Colors.white60 : _muted;
-    final uname = context.watch<UserModel>().username.trim();
+    final uname = context.select<UserModel, String>((u) => u.username.trim());
     final userName = uname.isEmpty ? 'there' : uname.split(RegExp(r'\s+')).first;
 
     return Scaffold(

@@ -257,92 +257,15 @@ class _JournalingQuestionsScreenState
 
             // Questions
             ...List.generate(_questions.length, (index) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Question ${index + 1}',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: isDark
-                                ? AppColors.purple
-                                : Theme.of(context).primaryColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _questions[index],
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.white : null,
-                          ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _controllers[index],
-                      focusNode: _focusNodes[index],
-                      maxLines: 4,
-                      style: TextStyle(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white
-                            : Colors.black87,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Type your answer here...',
-                        hintStyle: TextStyle(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white38
-                              : Colors.grey.shade500,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        filled: true,
-                        fillColor: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white.withOpacity(0.05)
-                            : Colors.grey.shade50,
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white.withOpacity(0.1)
-                                : Colors.grey.shade300,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? AppColors.purple
-                                : AppColors.teal,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please provide an answer';
-                        }
-                        if (value.trim().length < 10) {
-                          return 'Please write at least 10 characters';
-                        }
-                        return null;
-                      },
-                      textInputAction: index < _questions.length - 1
-                          ? TextInputAction.next
-                          : TextInputAction.done,
-                      onFieldSubmitted: (value) {
-                        if (index < _questions.length - 1) {
-                          _focusNodes[index + 1].requestFocus();
-                        } else {
-                          _submitJournal();
-                        }
-                      },
-                    ),
-                  ],
-                ),
+              return _JournalQuestionField(
+                key: ValueKey('question_$index'),
+                index: index,
+                question: _questions[index],
+                controller: _controllers[index],
+                focusNode: _focusNodes[index],
+                isLast: index == _questions.length - 1,
+                onNext: () => _focusNodes[index + 1].requestFocus(),
+                onSubmit: _submitJournal,
               );
             }),
 
@@ -374,6 +297,110 @@ class _JournalingQuestionsScreenState
             const SizedBox(height: 16),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _JournalQuestionField extends StatelessWidget {
+  final int index;
+  final String question;
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool isLast;
+  final VoidCallback onNext;
+  final VoidCallback onSubmit;
+
+  const _JournalQuestionField({
+    required this.index,
+    required this.question,
+    required this.controller,
+    required this.focusNode,
+    required this.isLast,
+    required this.onNext,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Question ${index + 1}',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: isDark
+                      ? AppColors.purple
+                      : Theme.of(context).primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            question,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : null,
+                ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: controller,
+            focusNode: focusNode,
+            maxLines: 4,
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Type your answer here...',
+              hintStyle: TextStyle(
+                color: isDark ? Colors.white38 : Colors.grey.shade500,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              filled: true,
+              fillColor: isDark
+                  ? Colors.white.withOpacity(0.05)
+                  : Colors.grey.shade50,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: isDark
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.grey.shade300,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: isDark ? AppColors.purple : AppColors.teal,
+                  width: 2,
+                ),
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please provide an answer';
+              }
+              if (value.trim().length < 10) {
+                return 'Please write at least 10 characters';
+              }
+              return null;
+            },
+            textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
+            onFieldSubmitted: (value) {
+              if (!isLast) {
+                onNext();
+              } else {
+                onSubmit();
+              }
+            },
+          ),
+        ],
       ),
     );
   }

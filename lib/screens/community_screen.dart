@@ -43,16 +43,16 @@ class _CommunityScreenState extends State<CommunityScreen> {
     final onCard = isDark ? Colors.white : _title;
     final subtle = isDark ? Colors.white60 : _muted;
 
-    final auth = context.watch<AuthModel>();
-    final user = context.watch<UserModel>();
-    final journal = context.watch<JournalModel>();
-    final rawName = (auth.userName ?? user.username).trim();
+    final authName = context.select<AuthModel, String?>((a) => a.userName);
+    final userName = context.select<UserModel, String>((u) => u.username);
+    final level = context.select<UserModel, int>((u) => u.level);
+    final journalCount = context.select<JournalModel, int>((j) => j.entries.length);
+    final rawName = (authName ?? userName).trim();
     final firstName = rawName.isEmpty
         ? 'Traveler'
         : rawName.split(RegExp(r'\s+')).first;
-    final journalCount = journal.entries.length;
 
-    final baseFeed = _defaultFeed(firstName, user.level);
+    final baseFeed = _defaultFeed(firstName, level);
     final feed = [..._myShared, ...baseFeed];
 
     return Scaffold(
